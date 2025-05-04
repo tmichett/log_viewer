@@ -11,8 +11,9 @@ class LogHighlighter(QSyntaxHighlighter):
         super().__init__(parent)
         self.highlight_terms = []
         self.highlight_format = QTextCharFormat()
-        # Brighter blue color for highlighting
+        # Brighter blue color for highlighting with black text
         self.highlight_format.setBackground(QColor(100, 149, 237))  # Cornflower blue
+        self.highlight_format.setForeground(QColor(0, 0, 0))  # Black text for better visibility
 
     def set_highlight_terms(self, terms):
         self.highlight_terms = terms
@@ -28,10 +29,14 @@ class LogViewer(QMainWindow):
         super().__init__()
         self.setWindowTitle("Log Viewer")
         self.setGeometry(100, 100, 800, 600)
-        self.current_search_index = 0
+        self.search_results = []
+        self.current_search_index = -1  # No search performed yet
         self.search_highlight_format = QTextCharFormat()
         self.search_highlight_format.setBackground(QColor(255, 255, 0))  # Yellow
         self.search_highlight_format.setForeground(QColor(0, 0, 0))  # Black text
+        
+        # Initial font size
+        self.current_font_size = 12
 
         # Set dark mode palette
         self.set_dark_mode()
@@ -44,13 +49,14 @@ class LogViewer(QMainWindow):
         # Create text editor
         self.text_editor = QTextEdit()
         self.text_editor.setReadOnly(True)
-        # Set text editor colors for dark mode
-        self.text_editor.setStyleSheet("""
-            QTextEdit {
+        # Set text editor colors for dark mode and initial font size
+        self.text_editor.setStyleSheet(f"""
+            QTextEdit {{
                 background-color: #2b2b2b;
                 color: #ffffff;
                 border: 1px solid #3f3f3f;
-            }
+                font-size: {self.current_font_size}pt;
+            }}
         """)
         layout.addWidget(self.text_editor)
 
@@ -76,7 +82,7 @@ class LogViewer(QMainWindow):
                 border-radius: 3px;
             }
         """)
-        self.search_input.returnPressed.connect(self.find_next)
+        self.search_input.returnPressed.connect(self.find_first)
         search_layout.addWidget(self.search_input)
         
         # Find button
@@ -96,7 +102,7 @@ class LogViewer(QMainWindow):
                 background-color: #2f2f2f;
             }
         """)
-        find_button.clicked.connect(self.find_next)
+        find_button.clicked.connect(self.find_first)
         search_layout.addWidget(find_button)
 
         # Find Next button
@@ -118,6 +124,65 @@ class LogViewer(QMainWindow):
         """)
         find_next_button.clicked.connect(self.find_next)
         search_layout.addWidget(find_next_button)
+        
+        # Font size controls
+        font_size_layout = QHBoxLayout()
+        font_size_label = QLabel("Font Size:")
+        font_size_label.setStyleSheet("color: white;")
+        font_size_layout.addWidget(font_size_label)
+        
+        # Decrease font size button
+        decrease_font_button = QPushButton("-")
+        decrease_font_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+                min-width: 30px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+            QPushButton:pressed {
+                background-color: #2f2f2f;
+            }
+        """)
+        decrease_font_button.clicked.connect(self.decrease_font_size)
+        font_size_layout.addWidget(decrease_font_button)
+        
+        # Current font size display
+        self.font_size_display = QLabel("12")
+        self.font_size_display.setStyleSheet("""
+            color: white;
+            padding: 0 10px;
+        """)
+        font_size_layout.addWidget(self.font_size_display)
+        
+        # Increase font size button
+        increase_font_button = QPushButton("+")
+        increase_font_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+                min-width: 30px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+            QPushButton:pressed {
+                background-color: #2f2f2f;
+            }
+        """)
+        increase_font_button.clicked.connect(self.increase_font_size)
+        font_size_layout.addWidget(increase_font_button)
+        
+        # Add font size controls to search layout
+        search_layout.addLayout(font_size_layout)
         
         # Add search layout to main layout
         layout.addLayout(search_layout)
@@ -142,6 +207,11 @@ class LogViewer(QMainWindow):
         open_button.clicked.connect(self.open_file)
         layout.addWidget(open_button)
 
+        # Status bar for search info
+        self.status_label = QLabel("Ready")
+        self.status_label.setStyleSheet("color: white;")
+        layout.addWidget(self.status_label)
+
         # Load highlight terms from config
         self.load_config()
 
@@ -162,61 +232,106 @@ class LogViewer(QMainWindow):
         palette.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
         self.setPalette(palette)
 
-    def find_next(self):
+    def find_first(self):
+        """Initiate a new search from the beginning of the document"""
         search_term = self.search_input.text()
         if not search_term:
             return
-
-        # Get current cursor position
+            
+        # Remove any existing highlights
+        self.clear_search_highlights()
+        
+        # Reset search index
+        self.current_search_index = -1
+        
+        # Move to beginning of document
         cursor = self.text_editor.textCursor()
-        
-        # Move cursor past the current match if there is one
-        if cursor.hasSelection():
-            cursor.setPosition(cursor.selectionEnd())
-        elif cursor.atEnd():
-            cursor.movePosition(cursor.MoveOperation.Start)
-        
+        cursor.movePosition(cursor.MoveOperation.Start)
         self.text_editor.setTextCursor(cursor)
         
-        # Find next occurrence
-        found = self.text_editor.find(search_term)
-        
-        if found:
-            # Get the current cursor position
-            cursor = self.text_editor.textCursor()
-            # Move to the start of the line
-            cursor.movePosition(cursor.MoveOperation.StartOfLine)
-            # Select the entire line
-            cursor.movePosition(cursor.MoveOperation.EndOfLine, cursor.MoveMode.KeepAnchor)
-            # Apply yellow highlight to the entire line
-            cursor.mergeCharFormat(self.search_highlight_format)
-            # Move cursor back to the found position
-            cursor = self.text_editor.textCursor()
-            cursor.setPosition(cursor.selectionStart())
-            self.text_editor.setTextCursor(cursor)
-        else:
-            # If not found, start from the beginning
-            cursor = self.text_editor.textCursor()
-            cursor.movePosition(cursor.MoveOperation.Start)
-            self.text_editor.setTextCursor(cursor)
-            found = self.text_editor.find(search_term)
+        # Find the first occurrence
+        self.find_next()
+
+    def find_next(self):
+        """Find the next occurrence of the search term"""
+        search_term = self.search_input.text()
+        if not search_term:
+            return
             
-            if found:
-                # Get the current cursor position
-                cursor = self.text_editor.textCursor()
-                # Move to the start of the line
-                cursor.movePosition(cursor.MoveOperation.StartOfLine)
-                # Select the entire line
-                cursor.movePosition(cursor.MoveOperation.EndOfLine, cursor.MoveMode.KeepAnchor)
-                # Apply yellow highlight to the entire line
-                cursor.mergeCharFormat(self.search_highlight_format)
-                # Move cursor back to the found position
-                cursor = self.text_editor.textCursor()
-                cursor.setPosition(cursor.selectionStart())
-                self.text_editor.setTextCursor(cursor)
-            else:
-                # If still not found, show message
-                self.text_editor.append("\nNo more matches found.")
+        if self.current_search_index == -1:
+            # First search or new search term
+            self.search_results = []
+            start_cursor = self.text_editor.textCursor()
+            start_cursor.movePosition(start_cursor.MoveOperation.Start)
+            self.text_editor.setTextCursor(start_cursor)
+            self.find_all_occurrences(search_term)
+            
+            if not self.search_results:
+                self.status_label.setText(f"No matches found for '{search_term}'")
+                return
+                
+        # Move to the next result
+        if self.search_results:
+            self.current_search_index = (self.current_search_index + 1) % len(self.search_results)
+            position = self.search_results[self.current_search_index]
+            
+            # Navigate to the position
+            cursor = self.text_editor.textCursor()
+            cursor.setPosition(position)
+            cursor.movePosition(cursor.MoveOperation.StartOfLine)
+            line_start_pos = cursor.position()
+            cursor.movePosition(cursor.MoveOperation.EndOfLine)
+            line_end_pos = cursor.position()
+            
+            # Select and highlight the entire line
+            cursor.setPosition(line_start_pos)
+            cursor.setPosition(line_end_pos, cursor.MoveMode.KeepAnchor)
+            self.text_editor.setTextCursor(cursor)
+            
+            # Apply highlight to the line
+            format = self.search_highlight_format
+            cursor.mergeCharFormat(format)
+            
+            # Position cursor at the beginning of the found term
+            cursor.setPosition(position)
+            self.text_editor.setTextCursor(cursor)
+            
+            # Ensure the found term is visible
+            self.text_editor.ensureCursorVisible()
+            
+            # Update status
+            self.status_label.setText(f"Match {self.current_search_index + 1} of {len(self.search_results)}")
+
+    def find_all_occurrences(self, search_term):
+        """Find all occurrences of the search term in the document"""
+        # Start from the beginning
+        cursor = self.text_editor.textCursor()
+        cursor.movePosition(cursor.MoveOperation.Start)
+        self.text_editor.setTextCursor(cursor)
+        
+        # Find all occurrences
+        while self.text_editor.find(search_term):
+            # Get the position of the found term
+            cursor = self.text_editor.textCursor()
+            self.search_results.append(cursor.selectionStart())
+        
+        # Reset cursor to the beginning
+        cursor.movePosition(cursor.MoveOperation.Start)
+        self.text_editor.setTextCursor(cursor)
+
+    def clear_search_highlights(self):
+        """Clear all search highlights from the document"""
+        # Reset the document formatting
+        cursor = self.text_editor.textCursor()
+        cursor.select(cursor.SelectionType.Document)
+        
+        # Create a default format (no highlighting)
+        default_format = QTextCharFormat()
+        cursor.setCharFormat(default_format)
+        
+        # Reset the cursor
+        cursor.clearSelection()
+        self.text_editor.setTextCursor(cursor)
 
     def load_config(self):
         try:
@@ -227,6 +342,33 @@ class LogViewer(QMainWindow):
         except Exception as e:
             print(f"Error loading config: {e}")
 
+    def increase_font_size(self):
+        """Increase the font size of the text editor"""
+        if self.current_font_size < 72:  # Maximum font size
+            self.current_font_size += 1
+            self.update_font_size()
+    
+    def decrease_font_size(self):
+        """Decrease the font size of the text editor"""
+        if self.current_font_size > 6:  # Minimum font size
+            self.current_font_size -= 1
+            self.update_font_size()
+    
+    def update_font_size(self):
+        """Update the font size in the text editor"""
+        # Update the display
+        self.font_size_display.setText(str(self.current_font_size))
+        
+        # Update the text editor style
+        self.text_editor.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: #2b2b2b;
+                color: #ffffff;
+                border: 1px solid #3f3f3f;
+                font-size: {self.current_font_size}pt;
+            }}
+        """)
+    
     def open_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
             self,
@@ -239,8 +381,13 @@ class LogViewer(QMainWindow):
             try:
                 with open(file_name, 'r') as f:
                     self.text_editor.setText(f.read())
+                # Reset search when loading a new file
+                self.current_search_index = -1
+                self.search_results = []
+                self.status_label.setText(f"Loaded {file_name}")
             except Exception as e:
                 self.text_editor.setText(f"Error opening file: {e}")
+                self.status_label.setText(f"Error opening file")
 
 def main():
     app = QApplication(sys.argv)
@@ -249,4 +396,4 @@ def main():
     sys.exit(app.exec())
 
 if __name__ == '__main__':
-    main() 
+    main()
