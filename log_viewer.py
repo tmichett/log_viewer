@@ -1,10 +1,70 @@
 import sys
 import yaml
+import re
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTextEdit, 
                            QVBoxLayout, QWidget, QPushButton, QFileDialog,
                            QHBoxLayout, QLineEdit, QLabel)
 from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette
 from PyQt6.QtCore import Qt
+
+class AnsiColorParser:
+    def __init__(self):
+        self.reset_format = QTextCharFormat()
+        self.reset_format.setForeground(QColor(255, 255, 255))  # Default white text
+        
+        # ANSI color mapping
+        self.colors = {
+            30: QColor(0, 0, 0),        # Black
+            31: QColor(255, 0, 0),      # Red
+            32: QColor(0, 255, 0),      # Green
+            33: QColor(255, 255, 0),    # Yellow
+            34: QColor(0, 0, 255),      # Blue
+            35: QColor(255, 0, 255),    # Magenta
+            36: QColor(0, 255, 255),    # Cyan
+            37: QColor(255, 255, 255),  # White
+            90: QColor(128, 128, 128),  # Bright Black
+            91: QColor(255, 128, 128),  # Bright Red
+            92: QColor(128, 255, 128),  # Bright Green
+            93: QColor(255, 255, 128),  # Bright Yellow
+            94: QColor(128, 128, 255),  # Bright Blue
+            95: QColor(255, 128, 255),  # Bright Magenta
+            96: QColor(128, 255, 255),  # Bright Cyan
+            97: QColor(255, 255, 255),  # Bright White
+        }
+
+    def parse_ansi(self, text):
+        # Regular expression to match ANSI escape sequences
+        ansi_pattern = re.compile(r'\x1b\[([0-9;]*)m')
+        
+        # Split text into segments based on ANSI codes
+        segments = []
+        last_end = 0
+        current_format = self.reset_format
+        
+        for match in ansi_pattern.finditer(text):
+            # Add text before the ANSI code
+            if match.start() > last_end:
+                segments.append((text[last_end:match.start()], current_format))
+            
+            # Parse the ANSI code
+            code = match.group(1)
+            if code == '0' or code == '':
+                current_format = self.reset_format
+            else:
+                format = QTextCharFormat()
+                codes = [int(c) for c in code.split(';')]
+                for c in codes:
+                    if c in self.colors:
+                        format.setForeground(self.colors[c])
+                current_format = format
+            
+            last_end = match.end()
+        
+        # Add any remaining text
+        if last_end < len(text):
+            segments.append((text[last_end:], current_format))
+        
+        return segments
 
 class LogHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
@@ -30,18 +90,16 @@ class LogViewer(QMainWindow):
         self.setWindowTitle("Log Viewer")
         self.setGeometry(100, 100, 800, 600)
         self.search_results = []
-        self.current_search_index = -1  # No search performed yet
+        self.current_search_index = -1
         self.search_highlight_format = QTextCharFormat()
-        self.search_highlight_format.setBackground(QColor(255, 255, 0))  # Yellow
-        self.search_highlight_format.setForeground(QColor(0, 0, 0))  # Black text
+        self.search_highlight_format.setBackground(QColor(255, 255, 0))
+        self.search_highlight_format.setForeground(QColor(0, 0, 0))
         
-        # Initial font size
         self.current_font_size = 12
+        self.ansi_parser = AnsiColorParser()
 
-        # Set dark mode palette
         self.set_dark_mode()
 
-        # Create central widget and layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
@@ -49,29 +107,24 @@ class LogViewer(QMainWindow):
         # Create text editor
         self.text_editor = QTextEdit()
         self.text_editor.setReadOnly(True)
-        # Set text editor colors for dark mode and initial font size
         self.text_editor.setStyleSheet(f"""
             QTextEdit {{
                 background-color: #2b2b2b;
                 color: #ffffff;
                 border: 1px solid #3f3f3f;
                 font-size: {self.current_font_size}pt;
+                font-family: monospace;
             }}
         """)
         layout.addWidget(self.text_editor)
 
-        # Create highlighter
-        self.highlighter = LogHighlighter(self.text_editor.document())
-
         # Create search bar and buttons layout
         search_layout = QHBoxLayout()
         
-        # Search label
         search_label = QLabel("Search:")
         search_label.setStyleSheet("color: white;")
         search_layout.addWidget(search_label)
         
-        # Search input
         self.search_input = QLineEdit()
         self.search_input.setStyleSheet("""
             QLineEdit {
@@ -85,7 +138,6 @@ class LogViewer(QMainWindow):
         self.search_input.returnPressed.connect(self.find_first)
         search_layout.addWidget(self.search_input)
         
-        # Find button
         find_button = QPushButton("Find")
         find_button.setStyleSheet("""
             QPushButton {
@@ -105,7 +157,6 @@ class LogViewer(QMainWindow):
         find_button.clicked.connect(self.find_first)
         search_layout.addWidget(find_button)
 
-        # Find Next button
         find_next_button = QPushButton("Find Next")
         find_next_button.setStyleSheet("""
             QPushButton {
@@ -125,13 +176,11 @@ class LogViewer(QMainWindow):
         find_next_button.clicked.connect(self.find_next)
         search_layout.addWidget(find_next_button)
         
-        # Font size controls
         font_size_layout = QHBoxLayout()
         font_size_label = QLabel("Font Size:")
         font_size_label.setStyleSheet("color: white;")
         font_size_layout.addWidget(font_size_label)
         
-        # Decrease font size button
         decrease_font_button = QPushButton("-")
         decrease_font_button.setStyleSheet("""
             QPushButton {
@@ -152,7 +201,6 @@ class LogViewer(QMainWindow):
         decrease_font_button.clicked.connect(self.decrease_font_size)
         font_size_layout.addWidget(decrease_font_button)
         
-        # Current font size display
         self.font_size_display = QLabel("12")
         self.font_size_display.setStyleSheet("""
             color: white;
@@ -160,7 +208,6 @@ class LogViewer(QMainWindow):
         """)
         font_size_layout.addWidget(self.font_size_display)
         
-        # Increase font size button
         increase_font_button = QPushButton("+")
         increase_font_button.setStyleSheet("""
             QPushButton {
@@ -181,13 +228,9 @@ class LogViewer(QMainWindow):
         increase_font_button.clicked.connect(self.increase_font_size)
         font_size_layout.addWidget(increase_font_button)
         
-        # Add font size controls to search layout
         search_layout.addLayout(font_size_layout)
-        
-        # Add search layout to main layout
         layout.addLayout(search_layout)
 
-        # Create open file button with dark mode styling
         open_button = QPushButton("Open Log File")
         open_button.setStyleSheet("""
             QPushButton {
@@ -207,12 +250,10 @@ class LogViewer(QMainWindow):
         open_button.clicked.connect(self.open_file)
         layout.addWidget(open_button)
 
-        # Status bar for search info
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("color: white;")
         layout.addWidget(self.status_label)
 
-        # Load highlight terms from config
         self.load_config()
 
     def set_dark_mode(self):
@@ -379,8 +420,18 @@ class LogViewer(QMainWindow):
         
         if file_name:
             try:
-                with open(file_name, 'r') as f:
-                    self.text_editor.setText(f.read())
+                with open(file_name, 'rb') as f:
+                    content = f.read().decode('utf-8', errors='replace')
+                    # Process the content with ANSI color codes
+                    cursor = self.text_editor.textCursor()
+                    cursor.movePosition(cursor.MoveOperation.Start)
+                    
+                    # Clear existing content
+                    self.text_editor.clear()
+                    
+                    for text, format in self.ansi_parser.parse_ansi(content):
+                        cursor.insertText(text, format)
+                    
                 # Reset search when loading a new file
                 self.current_search_index = -1
                 self.search_results = []
