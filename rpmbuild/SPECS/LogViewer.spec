@@ -11,7 +11,7 @@ License: Proprietary
 Group: Applications/System
 BuildArch: noarch
 BuildRoot: %{buildroot}
-Requires: python3
+Requires: python3 python-pyqt6 python-pyyaml
 
 %description
 Log Viewer
