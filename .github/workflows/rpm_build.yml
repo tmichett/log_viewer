@@ -1,0 +1,40 @@
+# Workflow name
+name: Build RPM
+
+
+# Controls when the workflow will run
+# Workflow will run on a push event.
+# Workflow won't be triggered to re-run based on the Gitauth token push
+#on: 
+  # This is a reusable workflow
+#  workflow_dispatch:
+on:
+  push:
+    branches:
+      - main
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  # This workflow contains a single job called "build"
+  build:
+    runs-on: ubuntu-latest
+    environment: deploy
+    steps:
+
+      # In this job, all steps begin with a name
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Create and Build RPM
+        run: bash ./RPM_Build_Clean.sh && ./RPM_Build.sh
+
+      - name: Create Release Draft
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }} # Use the tag name that triggered the workflow
+          draft: true # Create the release as a draft
+          files: |
+            /home/runner/rpmbuild/RPMS/noarch/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
