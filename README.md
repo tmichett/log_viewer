@@ -46,3 +46,7 @@ highlight_terms:
   - term2
   - term3
 ``` # log_viewer
+
+### Using 
+
+sudo dnf install python-pyqt6 python-pyyaml
