@@ -52,5 +52,5 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Sat May 6 2025 Log Viewer Build <tmichett@redhat.com> - 1.0-0
+* Mon May 5 2025 Log Viewer Build <tmichett@redhat.com> - 1.0-0
 - Initial package build
