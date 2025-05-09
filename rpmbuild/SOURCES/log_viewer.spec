@@ -3,7 +3,7 @@
 block_cipher = None
 
 a = Analysis(
-    ['rpmbuild/SOURCES/log_viewer.py'],
+    ['log_viewer.py'],
     pathex=[],
     binaries=[],
     datas=[],
