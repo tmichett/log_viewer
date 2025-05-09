@@ -38,6 +38,6 @@ jobs:
           tag_name: ${{ github.ref_name }} # Use the tag name that triggered the workflow
           draft: true # Create the release as a draft
           files: |
-            /home/runner/rpmbuild/RPMS/noarch/*.rpm
+            /home/runner/rpmbuild/RPMS/x86_64/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
