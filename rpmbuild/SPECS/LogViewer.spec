@@ -9,9 +9,10 @@ Version: %{version}
 Release: %{release}
 License: Proprietary
 Group: Applications/System
-BuildArch: noarch
 BuildRoot: %{buildroot}
+AutoReqProv: no
 Requires: python3 python-pyqt6 python-pyyaml
+
 
 %description
 Log Viewer
