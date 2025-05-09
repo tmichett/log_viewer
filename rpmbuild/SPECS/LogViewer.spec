@@ -1,6 +1,6 @@
 %define name LogViewer
 %define version 1.0
-%define release 0
+%define release 5
 %define buildroot %{_tmppath}/%{name}-%{version}-%{release}-root
 
 Summary: Log Viewer
