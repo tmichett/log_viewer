@@ -26,6 +26,9 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Create Python Compiled application
+	run: bash rpmbuild/SOURCES/Build_App.sh 
+
       - name: Create and Build RPM
         run: bash ./RPM_Build_Clean.sh && ./RPM_Build.sh
 
