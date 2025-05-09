@@ -30,7 +30,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/applications
 
 # Copy application files to the buildroot
 cp -p %{_sourcedir}/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p %{_sourcedir}/log_viewer.py $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p %{_sourcedir}/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
 cp -p %{_sourcedir}/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
 cp -p %{_sourcedir}/log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
 
@@ -45,7 +45,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 /opt/LogViewer/
 /opt/LogViewer/config.yml
-/opt/LogViewer/log_viewer.py
+/opt/LogViewer/log_viewer
 /opt/LogViewer/smallicon.png
 %attr(0755,root,root) /opt/LogViewer/log_viewer_start.sh
 %attr(0755,root,root) /usr/share/applications/LogViewer.desktop
