@@ -8,7 +8,7 @@ source log_viewer/bin/activate
 uv pip install PyInstaller PyQt6 PyYA
 pyinstaller rpmbuild/SOURCES/log_viewer.spec
 
-cp rpmbuild/SOURCES/dist/log_viewer .
+cp dist/log_viewer rpmbuild/SOURCES/ 
 
 
 
