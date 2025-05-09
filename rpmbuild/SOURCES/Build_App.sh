@@ -5,7 +5,7 @@
 pip3 install PyInstaller PyQt6 PyYAML
 pyinstaller rpmbuild/SOURCES/log_viewer.spec
 
-cp dist/log_viewer .
+cp rpmbuild/SOURCES/dist/log_viewer .
 
 
 
