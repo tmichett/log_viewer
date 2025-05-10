@@ -3,7 +3,7 @@
 Name=Log Viewer
 GenericName=Log Viewer
 X-GNOME-FullName=Log Viewer
-Exec=/opt/LogViewer/log_viewer_start.sh
+Exec=/opt/LogViewer/log_viewer
 Terminal=false
 Icon=/opt/LogViewer/smallicon.png
 Type=Application
