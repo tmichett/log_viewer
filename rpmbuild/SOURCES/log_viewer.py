@@ -70,19 +70,45 @@ class LogHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.highlight_terms = []
-        self.highlight_format = QTextCharFormat()
-        # Brighter blue color for highlighting with black text
-        self.highlight_format.setBackground(QColor(100, 149, 237))  # Cornflower blue
-        self.highlight_format.setForeground(QColor(0, 0, 0))  # Black text for better visibility
+        self.default_highlight_format = QTextCharFormat()
+        # Default cornflower blue color for highlighting with black text
+        self.default_highlight_format.setBackground(QColor(100, 149, 237))
+        self.default_highlight_format.setForeground(QColor(0, 0, 0))
 
     def set_highlight_terms(self, terms):
-        self.highlight_terms = terms
+        self.highlight_terms = []
+        for term in terms:
+            if isinstance(term, dict):
+                # New format with optional color
+                highlight_format = QTextCharFormat()
+                if 'color' in term:
+                    # Convert hex color to QColor
+                    color = QColor(term['color'])
+                    highlight_format.setBackground(color)
+                    # Set text color to black or white based on background brightness
+                    if color.lightness() > 128:
+                        highlight_format.setForeground(QColor(0, 0, 0))
+                    else:
+                        highlight_format.setForeground(QColor(255, 255, 255))
+                else:
+                    # Use default format if no color specified
+                    highlight_format = self.default_highlight_format
+                self.highlight_terms.append({
+                    'term': term['term'].lower(),
+                    'format': highlight_format
+                })
+            else:
+                # Backward compatibility for simple string terms
+                self.highlight_terms.append({
+                    'term': term.lower(),
+                    'format': self.default_highlight_format
+                })
         self.rehighlight()
 
     def highlightBlock(self, text):
-        for term in self.highlight_terms:
-            if term.lower() in text.lower():
-                self.setFormat(0, len(text), self.highlight_format)
+        for term_info in self.highlight_terms:
+            if term_info['term'] in text.lower():
+                self.setFormat(0, len(text), term_info['format'])
 
 class LogViewer(QMainWindow):
     def __init__(self):
@@ -117,6 +143,9 @@ class LogViewer(QMainWindow):
             }}
         """)
         layout.addWidget(self.text_editor)
+
+        # Initialize the highlighter
+        self.highlighter = LogHighlighter(self.text_editor.document())
 
         # Create search bar and buttons layout
         search_layout = QHBoxLayout()
@@ -411,34 +440,17 @@ class LogViewer(QMainWindow):
         """)
     
     def open_file(self):
-        file_name, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open Log File",
-            "",
-            "Text Files (*.txt);;All Files (*)"
-        )
-        
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open Log File", "", "Log Files (*.log);;All Files (*)")
         if file_name:
             try:
-                with open(file_name, 'rb') as f:
-                    content = f.read().decode('utf-8', errors='replace')
-                    # Process the content with ANSI color codes
-                    cursor = self.text_editor.textCursor()
-                    cursor.movePosition(cursor.MoveOperation.Start)
-                    
-                    # Clear existing content
+                with open(file_name, 'r') as f:
+                    content = f.read()
                     self.text_editor.clear()
-                    
-                    for text, format in self.ansi_parser.parse_ansi(content):
-                        cursor.insertText(text, format)
-                    
-                # Reset search when loading a new file
-                self.current_search_index = -1
-                self.search_results = []
-                self.status_label.setText(f"Loaded {file_name}")
+                    self.text_editor.setPlainText(content)
+                    # Reload config after opening new file to ensure highlighting is applied
+                    self.load_config()
             except Exception as e:
-                self.text_editor.setText(f"Error opening file: {e}")
-                self.status_label.setText(f"Error opening file")
+                print(f"Error opening file: {e}")
 
 def main():
     app = QApplication(sys.argv)
