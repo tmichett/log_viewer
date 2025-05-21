@@ -1,6 +1,6 @@
 %define name LogViewer
-%define version 1.0
-%define release 9
+%define version 1.1
+%define release 0
 %define buildroot %{_tmppath}/%{name}-%{version}-%{release}-root
 
 Summary: Log Viewer
@@ -11,7 +11,6 @@ License: Proprietary
 Group: Applications/System
 BuildRoot: %{buildroot}
 AutoReqProv: no
-Requires: python3 python-pyqt6 python-pyyaml
 
 
 %description
