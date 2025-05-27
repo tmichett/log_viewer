@@ -1,9 +1,13 @@
 import sys
 import yaml
 import re
+import os
+import argparse
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTextEdit, 
                            QVBoxLayout, QWidget, QPushButton, QFileDialog,
-                           QHBoxLayout, QLineEdit, QLabel)
+                           QHBoxLayout, QLineEdit, QLabel, QListWidget, 
+                           QColorDialog, QDialog, QFormLayout,
+                           QDialogButtonBox, QMessageBox, QInputDialog)
 from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette
 from PyQt6.QtCore import Qt
 
@@ -110,10 +114,212 @@ class LogHighlighter(QSyntaxHighlighter):
             if term_info['term'] in text.lower():
                 self.setFormat(0, len(text), term_info['format'])
 
+class ConfigDialog(QDialog):
+    def __init__(self, parent=None, highlight_terms=None):
+        super().__init__(parent)
+        self.setWindowTitle("Configure Highlighting")
+        self.resize(400, 300)
+        self.highlight_terms = highlight_terms or []
+        
+        # Set dark mode
+        palette = self.parent().palette()
+        self.setPalette(palette)
+        
+        layout = QVBoxLayout(self)
+        
+        # Terms list
+        self.terms_list = QListWidget()
+        self.terms_list.setStyleSheet("""
+            QListWidget {
+                background-color: #2b2b2b;
+                color: #ffffff;
+                border: 1px solid #3f3f3f;
+            }
+        """)
+        self.update_terms_list()
+        layout.addWidget(QLabel("Highlight Terms:"))
+        layout.addWidget(self.terms_list)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        
+        add_btn = QPushButton("Add Term")
+        add_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+        """)
+        add_btn.clicked.connect(self.add_term)
+        btn_layout.addWidget(add_btn)
+        
+        edit_btn = QPushButton("Edit Term")
+        edit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+        """)
+        edit_btn.clicked.connect(self.edit_term)
+        btn_layout.addWidget(edit_btn)
+        
+        remove_btn = QPushButton("Remove Term")
+        remove_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+        """)
+        remove_btn.clicked.connect(self.remove_term)
+        btn_layout.addWidget(remove_btn)
+        
+        layout.addLayout(btn_layout)
+        
+        # Save/Load buttons
+        config_btn_layout = QHBoxLayout()
+        
+        save_btn = QPushButton("Save Config")
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+        """)
+        save_btn.clicked.connect(self.save_config)
+        config_btn_layout.addWidget(save_btn)
+        
+        layout.addLayout(config_btn_layout)
+        
+        # Dialog buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | 
+                                      QDialogButtonBox.StandardButton.Cancel)
+        button_box.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+        """)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+    
+    def update_terms_list(self):
+        self.terms_list.clear()
+        for term in self.highlight_terms:
+            if isinstance(term, dict):
+                display_text = term['term']
+                if 'color' in term:
+                    display_text += f" (Color: {term['color']})"
+                self.terms_list.addItem(display_text)
+            else:
+                self.terms_list.addItem(term)
+    
+    def add_term(self):
+        term, ok = QInputDialog.getText(self, "Add Term", "Enter term to highlight:")
+        if ok and term:
+            color_dialog = QColorDialog(self)
+            color_dialog.setStyleSheet("""
+                QColorDialog {
+                    background-color: #3f3f3f;
+                    color: white;
+                }
+            """)
+            if color_dialog.exec() == QColorDialog.DialogCode.Accepted:
+                color = color_dialog.selectedColor()
+                color_hex = color.name()
+                self.highlight_terms.append({
+                    'term': term,
+                    'color': color_hex
+                })
+            else:
+                self.highlight_terms.append(term)
+            self.update_terms_list()
+    
+    def edit_term(self):
+        current_row = self.terms_list.currentRow()
+        if current_row >= 0:
+            current_term = self.highlight_terms[current_row]
+            
+            if isinstance(current_term, dict):
+                term = current_term['term']
+                current_color = current_term.get('color', None)
+            else:
+                term = current_term
+                current_color = None
+                
+            new_term, ok = QInputDialog.getText(self, "Edit Term", 
+                                              "Edit term to highlight:", 
+                                              text=term)
+            if ok and new_term:
+                color_dialog = QColorDialog(self)
+                if current_color:
+                    color_dialog.setCurrentColor(QColor(current_color))
+                
+                if color_dialog.exec() == QColorDialog.DialogCode.Accepted:
+                    color = color_dialog.selectedColor()
+                    color_hex = color.name()
+                    self.highlight_terms[current_row] = {
+                        'term': new_term,
+                        'color': color_hex
+                    }
+                else:
+                    self.highlight_terms[current_row] = new_term
+                    
+                self.update_terms_list()
+    
+    def remove_term(self):
+        current_row = self.terms_list.currentRow()
+        if current_row >= 0:
+            del self.highlight_terms[current_row]
+            self.update_terms_list()
+    
+    def save_config(self):
+        file_name, _ = QFileDialog.getSaveFileName(
+            self, "Save Configuration", "", "YAML Files (*.yml);;All Files (*)"
+        )
+        if file_name:
+            try:
+                config = {'highlight_terms': self.highlight_terms}
+                with open(file_name, 'w') as f:
+                    yaml.dump(config, f, default_flow_style=False)
+                QMessageBox.information(self, "Success", f"Configuration saved to {file_name}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save configuration: {str(e)}")
+
 class LogViewer(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Log Viewer")
+        self.setWindowTitle("Log Viewer - Supports .log, .out, .txt files")
         self.setGeometry(100, 100, 800, 600)
         self.search_results = []
         self.current_search_index = -1
@@ -123,6 +329,8 @@ class LogViewer(QMainWindow):
         
         self.current_font_size = 12
         self.ansi_parser = AnsiColorParser()
+        self.config_path = 'config.yml'
+        self.highlight_terms = []
 
         self.set_dark_mode()
 
@@ -205,6 +413,9 @@ class LogViewer(QMainWindow):
         find_next_button.clicked.connect(self.find_next)
         search_layout.addWidget(find_next_button)
         
+        layout.addLayout(search_layout)
+        
+        # Add font size controls
         font_size_layout = QHBoxLayout()
         font_size_label = QLabel("Font Size:")
         font_size_label.setStyleSheet("color: white;")
@@ -257,9 +468,31 @@ class LogViewer(QMainWindow):
         increase_font_button.clicked.connect(self.increase_font_size)
         font_size_layout.addWidget(increase_font_button)
         
-        search_layout.addLayout(font_size_layout)
-        layout.addLayout(search_layout)
-
+        # Add configuration button
+        config_button = QPushButton("Configure Highlighting")
+        config_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+            QPushButton:pressed {
+                background-color: #2f2f2f;
+            }
+        """)
+        config_button.clicked.connect(self.configure_highlighting)
+        font_size_layout.addWidget(config_button)
+        
+        layout.addLayout(font_size_layout)
+        
+        # File actions layout
+        file_layout = QHBoxLayout()
+        
         open_button = QPushButton("Open Log File")
         open_button.setStyleSheet("""
             QPushButton {
@@ -277,7 +510,28 @@ class LogViewer(QMainWindow):
             }
         """)
         open_button.clicked.connect(self.open_file)
-        layout.addWidget(open_button)
+        file_layout.addWidget(open_button)
+        
+        load_config_button = QPushButton("Load Config")
+        load_config_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+            QPushButton:pressed {
+                background-color: #2f2f2f;
+            }
+        """)
+        load_config_button.clicked.connect(self.load_custom_config)
+        file_layout.addWidget(load_config_button)
+        
+        layout.addLayout(file_layout)
 
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("color: white;")
@@ -405,12 +659,46 @@ class LogViewer(QMainWindow):
 
     def load_config(self):
         try:
-            with open('config.yml', 'r') as f:
-                config = yaml.safe_load(f)
-                if 'highlight_terms' in config:
-                    self.highlighter.set_highlight_terms(config['highlight_terms'])
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r') as f:
+                    config = yaml.safe_load(f)
+                    if 'highlight_terms' in config:
+                        self.highlight_terms = config['highlight_terms']
+                        self.highlighter.set_highlight_terms(self.highlight_terms)
+                        self.status_label.setText(f"Config loaded from {self.config_path}")
+            else:
+                # Load default config if no custom config exists
+                default_config_path = 'config.yml'
+                if os.path.exists(default_config_path) and self.config_path != default_config_path:
+                    with open(default_config_path, 'r') as f:
+                        config = yaml.safe_load(f)
+                        if 'highlight_terms' in config:
+                            self.highlight_terms = config['highlight_terms']
+                            self.highlighter.set_highlight_terms(self.highlight_terms)
+                            self.status_label.setText("Default config loaded")
         except Exception as e:
+            self.status_label.setText(f"Error loading config: {e}")
             print(f"Error loading config: {e}")
+
+    def load_custom_config(self):
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Load Configuration", "", "YAML Files (*.yml);;All Files (*)"
+        )
+        if file_name:
+            try:
+                self.config_path = file_name
+                self.load_config()
+                self.status_label.setText(f"Config loaded from {file_name}")
+            except Exception as e:
+                self.status_label.setText(f"Error loading config: {e}")
+                QMessageBox.critical(self, "Error", f"Failed to load configuration: {str(e)}")
+
+    def configure_highlighting(self):
+        dialog = ConfigDialog(self, self.highlight_terms)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.highlight_terms = dialog.highlight_terms
+            self.highlighter.set_highlight_terms(self.highlight_terms)
+            self.status_label.setText("Highlight configuration updated")
 
     def increase_font_size(self):
         """Increase the font size of the text editor"""
@@ -440,7 +728,12 @@ class LogViewer(QMainWindow):
         """)
     
     def open_file(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open Log File", "", "Log Files (*.log);;All Files (*)")
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, 
+            "Open Log File", 
+            "", 
+            "Log Files (*.log *.out *.txt);;Log Files (*.log);;Output Files (*.out);;Text Files (*.txt);;All Files (*)"
+        )
         if file_name:
             try:
                 with open(file_name, 'r') as f:
@@ -451,10 +744,34 @@ class LogViewer(QMainWindow):
                     self.load_config()
             except Exception as e:
                 print(f"Error opening file: {e}")
+                self.status_label.setText(f"Error opening file: {e}")
 
 def main():
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Log Viewer')
+    parser.add_argument('--config', help='Path to custom config.yml file')
+    parser.add_argument('file', nargs='?', help='Log file to open (.log, .out, .txt, or any text file)')
+    args = parser.parse_args()
+    
     app = QApplication(sys.argv)
     viewer = LogViewer()
+    
+    # Set custom config if provided
+    if args.config:
+        viewer.config_path = args.config
+        viewer.load_config()
+    
+    # Open file if provided
+    if args.file and os.path.exists(args.file):
+        try:
+            with open(args.file, 'r') as f:
+                content = f.read()
+                viewer.text_editor.setPlainText(content)
+                viewer.status_label.setText(f"Opened file: {args.file}")
+        except Exception as e:
+            print(f"Error opening file: {e}")
+            viewer.status_label.setText(f"Error opening file: {e}")
+    
     viewer.show()
     sys.exit(app.exec())
 
