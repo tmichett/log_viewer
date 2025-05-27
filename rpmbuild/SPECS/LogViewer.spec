@@ -59,7 +59,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Sat May 4 2024 Log Viewer Build <tmichett@redhat.com> - 1.3.1-0
+* Tue May 27 2025 Log Viewer Build <tmichett@redhat.com> - 1.3.1-0
 - Major performance improvements for file loading
 - Switched to more efficient QPlainTextEdit for text display
 - Implemented chunk-based rendering for large files
@@ -67,17 +67,12 @@ rm -rf $RPM_BUILD_ROOT
 - Optimized search operations for better performance
 - Added debounced search to prevent UI freezing
 
-* Fri May 3 2024 Log Viewer Build <tmichett@redhat.com> - 1.3-0
-- Added asynchronous file loading for large files
-- Added progress bar for file loading operations
-- Expanded file type support to include .log, .out, and .txt files
-- Improved error handling for file operations
-
-* Tue Apr 30 2024 Log Viewer Build <tmichett@redhat.com> - 1.2-0
+* Tue May 27 2025 Log Viewer Build <tmichett@redhat.com> - 1.2-5
 - Added configuration GUI for highlighting terms
 - Added support for custom config files through GUI
 - Added command-line arguments for config files and log files
 - Improved documentation
+
 
 * Mon May 5 2023 Log Viewer Build <tmichett@redhat.com> - 1.0-0
 - Initial package build
