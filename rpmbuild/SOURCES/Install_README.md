@@ -89,7 +89,8 @@ log_viewer [--config /path/to/config.yml] [logfile]
 - Configurable term highlighting with custom colors
 - Custom configuration management through GUI
 - Dark mode interface
-- Support for large log files
+- Support for large files with asynchronous loading
+- Progress indicator for file loading operations
 - Command-line arguments for config and file loading
 
 ## Troubleshooting
@@ -98,6 +99,7 @@ If you encounter any issues:
 2. Check that the log file is readable
 3. Verify the config.yml file format if using custom highlighting
 4. Check the application's error messages in the terminal
+5. For very large files, the application will load them asynchronously with a progress bar - please be patient during loading
 
 ## Support
 For issues or feature requests, please contact the maintainer or open an issue in the project repository. 

@@ -1,6 +1,6 @@
 %define name LogViewer
-%define version 1.2
-%define release 5
+%define version 1.3.1
+%define release 0
 %define buildroot %{_tmppath}/%{name}-%{version}-%{release}-root
 
 Summary: Log Viewer with ANSI color support and configurable highlighting
@@ -59,11 +59,25 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Tue May 27 2025 Log Viewer Build <tmichett@redhat.com> - 1.2-5
+* Sat May 4 2024 Log Viewer Build <tmichett@redhat.com> - 1.3.1-0
+- Major performance improvements for file loading
+- Switched to more efficient QPlainTextEdit for text display
+- Implemented chunk-based rendering for large files
+- Added incremental file loading with live updates
+- Optimized search operations for better performance
+- Added debounced search to prevent UI freezing
+
+* Fri May 3 2024 Log Viewer Build <tmichett@redhat.com> - 1.3-0
+- Added asynchronous file loading for large files
+- Added progress bar for file loading operations
+- Expanded file type support to include .log, .out, and .txt files
+- Improved error handling for file operations
+
+* Tue Apr 30 2024 Log Viewer Build <tmichett@redhat.com> - 1.2-0
 - Added configuration GUI for highlighting terms
 - Added support for custom config files through GUI
 - Added command-line arguments for config files and log files
 - Improved documentation
 
-* Mon May 5 2025 Log Viewer Build <tmichett@redhat.com> - 1.0-0
+* Mon May 5 2023 Log Viewer Build <tmichett@redhat.com> - 1.0-0
 - Initial package build

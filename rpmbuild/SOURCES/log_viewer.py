@@ -3,13 +3,39 @@ import yaml
 import re
 import os
 import argparse
+import time
+import warnings
+
+# Suppress deprecation warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTextEdit, 
                            QVBoxLayout, QWidget, QPushButton, QFileDialog,
                            QHBoxLayout, QLineEdit, QLabel, QListWidget, 
                            QColorDialog, QDialog, QFormLayout,
-                           QDialogButtonBox, QMessageBox, QInputDialog)
-from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette
-from PyQt6.QtCore import Qt
+                           QDialogButtonBox, QMessageBox, QInputDialog,
+                           QProgressBar, QScrollBar, QPlainTextEdit)
+from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette, QTextCursor
+from PyQt6.QtCore import (Qt, QRunnable, QThreadPool, pyqtSignal, QObject, 
+                         pyqtSlot, QTimer, QSize)
+
+# Define constant values for Qt enums that might differ between PyQt versions
+class QtConstants:
+    # QTextCursor movement constants
+    MoveStart = 11  # QTextCursor.Start
+    MoveEnd = 12    # QTextCursor.End
+    
+    # Line wrap mode constants
+    NoWrap = 0      # QPlainTextEdit.NoWrap
+    WidgetWidth = 1 # QPlainTextEdit.WidgetWidth
+    
+    # Dialog result constants
+    Accepted = 1    # QDialog.Accepted
+    Rejected = 0    # QDialog.Rejected
+    
+    # Dialog button constants
+    Ok = 0x00000400       # QDialogButtonBox.Ok
+    Cancel = 0x00000800   # QDialogButtonBox.Cancel
 
 class AnsiColorParser:
     def __init__(self):
@@ -215,8 +241,17 @@ class ConfigDialog(QDialog):
         layout.addLayout(config_btn_layout)
         
         # Dialog buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | 
-                                      QDialogButtonBox.StandardButton.Cancel)
+        # Use constants directly to avoid enum issues
+        try:
+            button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        except AttributeError:
+            try:
+                button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | 
+                                            QDialogButtonBox.StandardButton.Cancel)
+            except AttributeError:
+                # Fallback to our constants
+                button_box = QDialogButtonBox(QtConstants.Ok | QtConstants.Cancel)
+                
         button_box.setStyleSheet("""
             QPushButton {
                 background-color: #3f3f3f;
@@ -254,7 +289,19 @@ class ConfigDialog(QDialog):
                     color: white;
                 }
             """)
-            if color_dialog.exec() == QColorDialog.DialogCode.Accepted:
+            
+            # Use try/except to handle different PyQt versions for dialog execution
+            try:
+                result = color_dialog.exec()
+            except AttributeError:
+                # For PyQt6 < 6.0
+                try:
+                    result = color_dialog.exec_()
+                except AttributeError:
+                    result = QtConstants.Rejected
+                    print("Warning: Could not execute color dialog.")
+            
+            if result == QtConstants.Accepted:
                 color = color_dialog.selectedColor()
                 color_hex = color.name()
                 self.highlight_terms.append({
@@ -285,7 +332,18 @@ class ConfigDialog(QDialog):
                 if current_color:
                     color_dialog.setCurrentColor(QColor(current_color))
                 
-                if color_dialog.exec() == QColorDialog.DialogCode.Accepted:
+                # Use try/except to handle different PyQt versions for dialog execution
+                try:
+                    result = color_dialog.exec()
+                except AttributeError:
+                    # For PyQt6 < 6.0
+                    try:
+                        result = color_dialog.exec_()
+                    except AttributeError:
+                        result = QtConstants.Rejected
+                        print("Warning: Could not execute color dialog.")
+                
+                if result == QtConstants.Accepted:
                     color = color_dialog.selectedColor()
                     color_hex = color.name()
                     self.highlight_terms[current_row] = {
@@ -316,11 +374,122 @@ class ConfigDialog(QDialog):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save configuration: {str(e)}")
 
+# WorkerSignals class to enable signal communication from QRunnable worker
+class WorkerSignals(QObject):
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+    result = pyqtSignal(object)
+    progress = pyqtSignal(int)
+    chunk_ready = pyqtSignal(str, int, int)  # text, chunk_number, total_chunks
+
+# FileLoaderWorker class to handle file loading in a separate thread
+class FileLoaderWorker(QRunnable):
+    def __init__(self, file_path, chunk_size=256*1024):  # Reduced chunk size to 256KB
+        super().__init__()
+        self.file_path = file_path
+        self.signals = WorkerSignals()
+        self.chunk_size = chunk_size
+        
+    @pyqtSlot()
+    def run(self):
+        try:
+            # Get file size for progress calculation
+            file_size = os.path.getsize(self.file_path)
+            
+            # Count total chunks for progress reporting
+            total_chunks = (file_size // self.chunk_size) + (1 if file_size % self.chunk_size else 0)
+            
+            with open(self.file_path, 'r', errors='replace') as f:
+                bytes_read = 0
+                chunk_number = 0
+                
+                while True:
+                    chunk = f.read(self.chunk_size)
+                    if not chunk:
+                        break
+                        
+                    chunk_number += 1
+                    bytes_read += len(chunk.encode('utf-8'))
+                    progress = int((bytes_read / file_size) * 100)
+                    
+                    # Emit the chunk for immediate display
+                    self.signals.chunk_ready.emit(chunk, chunk_number, total_chunks)
+                    
+                    # Emit progress update
+                    self.signals.progress.emit(progress)
+                    
+                    # Small sleep to allow UI updates
+                    time.sleep(0.01)
+            
+            # Signal completion
+            self.signals.finished.emit()
+            
+        except Exception as e:
+            self.signals.error.emit(str(e))
+
+# Optimized text editor that efficiently handles large files
+class OptimizedTextEdit(QPlainTextEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setReadOnly(True)
+        
+        # Use try/except to handle different PyQt versions
+        try:
+            # Try with enum if available
+            self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        except (AttributeError, TypeError):
+            try:
+                # Try with direct enum access
+                self.setLineWrapMode(QPlainTextEdit.NoWrap)
+            except (AttributeError, TypeError):
+                # Fallback to function with no args (some PyQt versions default to NoWrap)
+                print("Warning: Could not set line wrap mode, using default.")
+        
+        # Optimize display settings
+        self.document().setMaximumBlockCount(100000)  # Limit maximum blocks for performance
+        
+    def append_text(self, text):
+        """Append text more efficiently"""
+        cursor = self.textCursor()
+        
+        # Use try/except to handle different PyQt versions
+        try:
+            cursor.movePosition(QtConstants.MoveEnd)  # Use our constant
+        except (AttributeError, TypeError):
+            try:
+                # Try with enum
+                cursor.movePosition(QTextCursor.End)
+            except (AttributeError, TypeError):
+                # Try with MoveOperation enum
+                try:
+                    cursor.movePosition(QTextCursor.MoveOperation.End)
+                except (AttributeError, TypeError):
+                    print("Warning: Could not move cursor to end.")
+        
+        cursor.insertText(text)
+        
+        # Limit text updates for better performance
+        self.setUpdatesEnabled(False)
+        self.setTextCursor(cursor)
+        self.setUpdatesEnabled(True)
+
+# Compatibility helper functions
+def safe_single_shot(ms, callback):
+    """A wrapper for QTimer.singleShot that handles different PyQt versions"""
+    try:
+        QTimer.singleShot(ms, callback)
+    except (AttributeError, TypeError):
+        # Fallback: create a timer manually
+        timer = QTimer()
+        timer.setSingleShot(True)
+        timer.timeout.connect(callback)
+        timer.start(ms)
+
 class LogViewer(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Log Viewer - Supports .log, .out, .txt files")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 1000, 700)  # Larger default window
         self.search_results = []
         self.current_search_index = -1
         self.search_highlight_format = QTextCharFormat()
@@ -331,6 +500,13 @@ class LogViewer(QMainWindow):
         self.ansi_parser = AnsiColorParser()
         self.config_path = 'config.yml'
         self.highlight_terms = []
+        self.loading_file = False
+        self.current_file = None
+        self.total_content = ""
+        
+        # Initialize thread pool for background tasks
+        self.threadpool = QThreadPool()
+        print(f"Maximum thread count: {self.threadpool.maxThreadCount()}")
 
         self.set_dark_mode()
 
@@ -338,11 +514,10 @@ class LogViewer(QMainWindow):
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
 
-        # Create text editor
-        self.text_editor = QTextEdit()
-        self.text_editor.setReadOnly(True)
+        # Create optimized text editor
+        self.text_editor = OptimizedTextEdit()
         self.text_editor.setStyleSheet(f"""
-            QTextEdit {{
+            QPlainTextEdit {{
                 background-color: #2b2b2b;
                 color: #ffffff;
                 border: 1px solid #3f3f3f;
@@ -351,6 +526,24 @@ class LogViewer(QMainWindow):
             }}
         """)
         layout.addWidget(self.text_editor)
+        
+        # Add progress bar for file loading
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #555555;
+                border-radius: 3px;
+                text-align: center;
+                background-color: #2b2b2b;
+                color: white;
+            }
+            QProgressBar::chunk {
+                background-color: #3f7fbf;
+                width: 10px;
+            }
+        """)
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
 
         # Initialize the highlighter
         self.highlighter = LogHighlighter(self.text_editor.document())
@@ -538,6 +731,11 @@ class LogViewer(QMainWindow):
         layout.addWidget(self.status_label)
 
         self.load_config()
+        
+        # Set up debounce timer for search
+        self.search_timer = QTimer()
+        self.search_timer.setSingleShot(True)
+        self.search_timer.timeout.connect(self.perform_search)
 
     def set_dark_mode(self):
         # Set dark mode palette for the main window
@@ -562,6 +760,15 @@ class LogViewer(QMainWindow):
         if not search_term:
             return
             
+        # Start the debounced search
+        self.search_timer.start(100)  # 100ms debounce
+    
+    def perform_search(self):
+        """Perform the actual search after debounce delay"""
+        search_term = self.search_input.text()
+        if not search_term:
+            return
+            
         # Remove any existing highlights
         self.clear_search_highlights()
         
@@ -570,7 +777,19 @@ class LogViewer(QMainWindow):
         
         # Move to beginning of document
         cursor = self.text_editor.textCursor()
-        cursor.movePosition(cursor.MoveOperation.Start)
+        
+        # Use try/except to handle different PyQt versions
+        try:
+            cursor.movePosition(QtConstants.MoveStart)  # Use our constant
+        except (AttributeError, TypeError):
+            try:
+                cursor.movePosition(QTextCursor.Start)
+            except (AttributeError, TypeError):
+                try:
+                    cursor.movePosition(QTextCursor.MoveOperation.Start)
+                except (AttributeError, TypeError):
+                    print("Warning: Could not move cursor to start.")
+                    
         self.text_editor.setTextCursor(cursor)
         
         # Find the first occurrence
@@ -586,7 +805,19 @@ class LogViewer(QMainWindow):
             # First search or new search term
             self.search_results = []
             start_cursor = self.text_editor.textCursor()
-            start_cursor.movePosition(start_cursor.MoveOperation.Start)
+            
+            # Use try/except to handle different PyQt versions
+            try:
+                start_cursor.movePosition(QtConstants.MoveStart)  # Use our constant
+            except (AttributeError, TypeError):
+                try:
+                    start_cursor.movePosition(QTextCursor.Start)
+                except (AttributeError, TypeError):
+                    try:
+                        start_cursor.movePosition(QTextCursor.MoveOperation.Start)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not move cursor to start.")
+                        
             self.text_editor.setTextCursor(start_cursor)
             self.find_all_occurrences(search_term)
             
@@ -602,58 +833,36 @@ class LogViewer(QMainWindow):
             # Navigate to the position
             cursor = self.text_editor.textCursor()
             cursor.setPosition(position)
-            cursor.movePosition(cursor.MoveOperation.StartOfLine)
-            line_start_pos = cursor.position()
-            cursor.movePosition(cursor.MoveOperation.EndOfLine)
-            line_end_pos = cursor.position()
             
-            # Select and highlight the entire line
-            cursor.setPosition(line_start_pos)
-            cursor.setPosition(line_end_pos, cursor.MoveMode.KeepAnchor)
+            # Make sure the position is visible
             self.text_editor.setTextCursor(cursor)
-            
-            # Apply highlight to the line
-            format = self.search_highlight_format
-            cursor.mergeCharFormat(format)
-            
-            # Position cursor at the beginning of the found term
-            cursor.setPosition(position)
-            self.text_editor.setTextCursor(cursor)
-            
-            # Ensure the found term is visible
-            self.text_editor.ensureCursorVisible()
+            self.text_editor.centerCursor()
             
             # Update status
             self.status_label.setText(f"Match {self.current_search_index + 1} of {len(self.search_results)}")
-
+    
     def find_all_occurrences(self, search_term):
         """Find all occurrences of the search term in the document"""
-        # Start from the beginning
-        cursor = self.text_editor.textCursor()
-        cursor.movePosition(cursor.MoveOperation.Start)
-        self.text_editor.setTextCursor(cursor)
+        # Get the full text (more efficient than searching through the document)
+        full_text = self.text_editor.toPlainText()
         
         # Find all occurrences
-        while self.text_editor.find(search_term):
-            # Get the position of the found term
-            cursor = self.text_editor.textCursor()
-            self.search_results.append(cursor.selectionStart())
+        start = 0
+        while True:
+            pos = full_text.find(search_term, start)
+            if pos == -1:
+                break
+            self.search_results.append(pos)
+            start = pos + len(search_term)
         
-        # Reset cursor to the beginning
-        cursor.movePosition(cursor.MoveOperation.Start)
-        self.text_editor.setTextCursor(cursor)
-
+        # Update the UI to reflect the number of matches
+        if self.search_results:
+            self.status_label.setText(f"Found {len(self.search_results)} matches")
+    
     def clear_search_highlights(self):
-        """Clear all search highlights from the document"""
-        # Reset the document formatting
+        """Clear all search highlights"""
+        # For QPlainTextEdit, we just clear selections
         cursor = self.text_editor.textCursor()
-        cursor.select(cursor.SelectionType.Document)
-        
-        # Create a default format (no highlighting)
-        default_format = QTextCharFormat()
-        cursor.setCharFormat(default_format)
-        
-        # Reset the cursor
         cursor.clearSelection()
         self.text_editor.setTextCursor(cursor)
 
@@ -695,7 +904,20 @@ class LogViewer(QMainWindow):
 
     def configure_highlighting(self):
         dialog = ConfigDialog(self, self.highlight_terms)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
+        
+        # Use try/except to handle different PyQt versions for dialog execution
+        try:
+            result = dialog.exec()
+        except AttributeError:
+            # For PyQt6 < 6.0
+            try:
+                result = dialog.exec_()
+            except AttributeError:
+                result = QtConstants.Rejected
+                print("Warning: Could not execute dialog.")
+        
+        # Compare with our constant for consistency
+        if result == QtConstants.Accepted:
             self.highlight_terms = dialog.highlight_terms
             self.highlighter.set_highlight_terms(self.highlight_terms)
             self.status_label.setText("Highlight configuration updated")
@@ -719,14 +941,15 @@ class LogViewer(QMainWindow):
         
         # Update the text editor style
         self.text_editor.setStyleSheet(f"""
-            QTextEdit {{
+            QPlainTextEdit {{
                 background-color: #2b2b2b;
                 color: #ffffff;
                 border: 1px solid #3f3f3f;
                 font-size: {self.current_font_size}pt;
+                font-family: monospace;
             }}
         """)
-    
+
     def open_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
             self, 
@@ -735,16 +958,85 @@ class LogViewer(QMainWindow):
             "Log Files (*.log *.out *.txt);;Log Files (*.log);;Output Files (*.out);;Text Files (*.txt);;All Files (*)"
         )
         if file_name:
+            self.load_file_async(file_name)
+    
+    def load_file_async(self, file_path):
+        """Load a file asynchronously to prevent UI freezing"""
+        if self.loading_file:
+            QMessageBox.warning(self, "Loading in Progress", "Already loading a file. Please wait for the current operation to complete.")
+            return
+            
+        self.loading_file = True
+        self.current_file = file_path
+        self.total_content = ""
+        
+        # Clear previous content
+        self.text_editor.clear()
+        self.status_label.setText(f"Loading file: {file_path}...")
+        
+        # Show progress bar
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(True)
+        
+        # Create worker with smaller chunk size
+        worker = FileLoaderWorker(file_path)
+        
+        # Connect signals
+        worker.signals.chunk_ready.connect(self.on_chunk_ready)
+        worker.signals.error.connect(self.on_file_error)
+        worker.signals.progress.connect(self.update_progress)
+        worker.signals.finished.connect(self.on_loading_finished)
+        
+        # Execute worker
+        self.threadpool.start(worker)
+    
+    def update_progress(self, value):
+        """Update progress bar"""
+        self.progress_bar.setValue(value)
+    
+    def on_chunk_ready(self, chunk, chunk_number, total_chunks):
+        """Handle a chunk of text from the file loader"""
+        # Append to the total content
+        self.total_content += chunk
+        
+        # Only update the display with this chunk, not the entire content
+        self.text_editor.append_text(chunk)
+        
+        # Update status
+        self.status_label.setText(f"Loading chunk {chunk_number}/{total_chunks}...")
+    
+    def on_loading_finished(self):
+        """Handle completion of file loading"""
+        self.loading_file = False
+        self.progress_bar.setVisible(False)
+        self.status_label.setText(f"File loaded: {self.current_file}")
+        
+        # Apply highlighting after file is completely loaded
+        safe_single_shot(100, self.load_config)
+        
+        # Move cursor to start for better performance
+        cursor = self.text_editor.textCursor()
+        
+        # Use try/except to handle different PyQt versions
+        try:
+            cursor.movePosition(QtConstants.MoveStart)  # Use our constant
+        except (AttributeError, TypeError):
             try:
-                with open(file_name, 'r') as f:
-                    content = f.read()
-                    self.text_editor.clear()
-                    self.text_editor.setPlainText(content)
-                    # Reload config after opening new file to ensure highlighting is applied
-                    self.load_config()
-            except Exception as e:
-                print(f"Error opening file: {e}")
-                self.status_label.setText(f"Error opening file: {e}")
+                cursor.movePosition(QTextCursor.Start)
+            except (AttributeError, TypeError):
+                try:
+                    cursor.movePosition(QTextCursor.MoveOperation.Start)
+                except (AttributeError, TypeError):
+                    print("Warning: Could not move cursor to start.")
+                    
+        self.text_editor.setTextCursor(cursor)
+    
+    def on_file_error(self, error_msg):
+        """Handle file loading errors"""
+        self.loading_file = False
+        self.progress_bar.setVisible(False)
+        self.status_label.setText(f"Error opening file: {error_msg}")
+        QMessageBox.critical(self, "Error", f"Failed to open file: {error_msg}")
 
 def main():
     # Parse command-line arguments
@@ -754,6 +1046,10 @@ def main():
     args = parser.parse_args()
     
     app = QApplication(sys.argv)
+    
+    # Apply performance optimization settings
+    app.setStyle('Fusion')  # Use Fusion style for better performance
+    
     viewer = LogViewer()
     
     # Set custom config if provided
@@ -761,18 +1057,14 @@ def main():
         viewer.config_path = args.config
         viewer.load_config()
     
+    # Show the viewer before loading file for responsiveness
+    viewer.show()
+    
     # Open file if provided
     if args.file and os.path.exists(args.file):
-        try:
-            with open(args.file, 'r') as f:
-                content = f.read()
-                viewer.text_editor.setPlainText(content)
-                viewer.status_label.setText(f"Opened file: {args.file}")
-        except Exception as e:
-            print(f"Error opening file: {e}")
-            viewer.status_label.setText(f"Error opening file: {e}")
+        # Use a short delay to ensure the UI is fully displayed first
+        safe_single_shot(100, lambda: viewer.load_file_async(args.file))
     
-    viewer.show()
     sys.exit(app.exec())
 
 if __name__ == '__main__':
