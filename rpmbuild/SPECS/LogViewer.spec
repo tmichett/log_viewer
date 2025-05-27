@@ -1,6 +1,6 @@
 %define name LogViewer
 %define version 1.2
-%define release 0
+%define release 5
 %define buildroot %{_tmppath}/%{name}-%{version}-%{release}-root
 
 Summary: Log Viewer with ANSI color support and configurable highlighting
@@ -59,7 +59,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Tue May 27 2025 Log Viewer Build <tmichett@redhat.com> - 1.2-0
+* Tue May 27 2025 Log Viewer Build <tmichett@redhat.com> - 1.2-5
 - Added configuration GUI for highlighting terms
 - Added support for custom config files through GUI
 - Added command-line arguments for config files and log files
