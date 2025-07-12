@@ -25,9 +25,14 @@ class QtConstants:
     MoveStart = 11  # QTextCursor.Start
     MoveEnd = 12    # QTextCursor.End
     
-    # Line wrap mode constants
-    NoWrap = 0      # QPlainTextEdit.NoWrap
-    WidgetWidth = 1 # QPlainTextEdit.WidgetWidth
+    # QTextCursor move operation constants
+    NextCharacter = 1   # QTextCursor.NextCharacter
+    StartOfLine = 10    # QTextCursor.StartOfLine
+    EndOfLine = 11      # QTextCursor.EndOfLine
+    
+    # QTextCursor move mode constants
+    KeepAnchor = 1      # QTextCursor.KeepAnchor
+    
     
     # Dialog result constants
     Accepted = 1    # QDialog.Accepted
@@ -496,6 +501,10 @@ class LogViewer(QMainWindow):
         self.search_highlight_format.setBackground(QColor(255, 255, 0))
         self.search_highlight_format.setForeground(QColor(0, 0, 0))
         
+        # Store the current highlighted line positions for clearing
+        self.current_highlight_start = None
+        self.current_highlight_end = None
+        
         self.current_font_size = 12
         self.ansi_parser = AnsiColorParser()
         self.config_path = 'config.yml'
@@ -586,6 +595,25 @@ class LogViewer(QMainWindow):
         """)
         find_button.clicked.connect(self.find_first)
         search_layout.addWidget(find_button)
+
+        find_prev_button = QPushButton("Find Previous")
+        find_prev_button.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 5px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+            QPushButton:pressed {
+                background-color: #2f2f2f;
+            }
+        """)
+        find_prev_button.clicked.connect(self.find_previous)
+        search_layout.addWidget(find_prev_button)
 
         find_next_button = QPushButton("Find Next")
         find_next_button.setStyleSheet("""
@@ -772,8 +800,10 @@ class LogViewer(QMainWindow):
         # Remove any existing highlights
         self.clear_search_highlights()
         
-        # Reset search index
+        # Reset search index and clear stored positions
         self.current_search_index = -1
+        self.current_highlight_start = None
+        self.current_highlight_end = None
         
         # Move to beginning of document
         cursor = self.text_editor.textCursor()
@@ -828,18 +858,102 @@ class LogViewer(QMainWindow):
         # Move to the next result
         if self.search_results:
             self.current_search_index = (self.current_search_index + 1) % len(self.search_results)
-            position = self.search_results[self.current_search_index]
+            self.highlight_current_match()
+    
+    def find_previous(self):
+        """Find the previous occurrence of the search term"""
+        search_term = self.search_input.text()
+        if not search_term:
+            return
             
-            # Navigate to the position
-            cursor = self.text_editor.textCursor()
-            cursor.setPosition(position)
+        if self.current_search_index == -1:
+            # First search or new search term - start from end
+            self.search_results = []
+            start_cursor = self.text_editor.textCursor()
             
-            # Make sure the position is visible
-            self.text_editor.setTextCursor(cursor)
-            self.text_editor.centerCursor()
+            # Use try/except to handle different PyQt versions
+            try:
+                start_cursor.movePosition(QtConstants.MoveStart)  # Use our constant
+            except (AttributeError, TypeError):
+                try:
+                    start_cursor.movePosition(QTextCursor.Start)
+                except (AttributeError, TypeError):
+                    try:
+                        start_cursor.movePosition(QTextCursor.MoveOperation.Start)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not move cursor to start.")
+                        
+            self.text_editor.setTextCursor(start_cursor)
+            self.find_all_occurrences(search_term)
             
-            # Update status
-            self.status_label.setText(f"Match {self.current_search_index + 1} of {len(self.search_results)}")
+            if not self.search_results:
+                self.status_label.setText(f"No matches found for '{search_term}'")
+                return
+            
+            # Start from the last match
+            self.current_search_index = len(self.search_results)
+                
+        # Move to the previous result
+        if self.search_results:
+            self.current_search_index = (self.current_search_index - 1) % len(self.search_results)
+            self.highlight_current_match()
+    
+    def highlight_current_match(self):
+        """Highlight the current match line"""
+        if not self.search_results:
+            return
+            
+        # Clear previous highlight
+        self.clear_current_highlight()
+        
+        search_term = self.search_input.text()
+        position = self.search_results[self.current_search_index]
+        
+        # Navigate to the position and highlight the entire line
+        cursor = self.text_editor.textCursor()
+        cursor.setPosition(position)
+        
+        # Select the entire line
+        try:
+            cursor.movePosition(QTextCursor.MoveOperation.StartOfLine)
+        except (AttributeError, TypeError):
+            try:
+                cursor.movePosition(QTextCursor.StartOfLine)
+            except (AttributeError, TypeError):
+                try:
+                    cursor.movePosition(QtConstants.StartOfLine)
+                except (AttributeError, TypeError):
+                    print("Warning: Could not move to start of line.")
+        
+        # Select to end of line with compatibility handling
+        try:
+            cursor.movePosition(QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.KeepAnchor)
+        except (AttributeError, TypeError):
+            try:
+                cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
+            except (AttributeError, TypeError):
+                try:
+                    cursor.movePosition(QTextCursor.MoveOperation.EndOfLine, QtConstants.KeepAnchor)
+                except (AttributeError, TypeError):
+                    try:
+                        cursor.movePosition(QtConstants.EndOfLine, QtConstants.KeepAnchor)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not select to end of line.")
+        
+        # Store the line positions for clearing later
+        self.current_highlight_start = cursor.selectionStart()
+        self.current_highlight_end = cursor.selectionEnd()
+        
+        # Apply yellow highlighting to the entire line
+        cursor.setCharFormat(self.search_highlight_format)
+        
+        # Position cursor at the search term for visibility (but don't change selection)
+        cursor.setPosition(position)
+        self.text_editor.setTextCursor(cursor)
+        self.text_editor.centerCursor()
+        
+        # Update status
+        self.status_label.setText(f"Match {self.current_search_index + 1} of {len(self.search_results)}")
     
     def find_all_occurrences(self, search_term):
         """Find all occurrences of the search term in the document"""
@@ -861,10 +975,39 @@ class LogViewer(QMainWindow):
     
     def clear_search_highlights(self):
         """Clear all search highlights"""
-        # For QPlainTextEdit, we just clear selections
+
+        self.clear_current_highlight()
+        
+        # Clear the cursor selection
+
         cursor = self.text_editor.textCursor()
         cursor.clearSelection()
         self.text_editor.setTextCursor(cursor)
+    
+    def clear_current_highlight(self):
+        """Clear the current line highlight"""
+        if self.current_highlight_start is not None and self.current_highlight_end is not None:
+            # Create a new cursor to clear the formatting
+            cursor = self.text_editor.textCursor()
+            cursor.setPosition(self.current_highlight_start)
+            
+            # Select the same range
+            try:
+                cursor.setPosition(self.current_highlight_end, QTextCursor.MoveMode.KeepAnchor)
+            except (AttributeError, TypeError):
+                try:
+                    cursor.setPosition(self.current_highlight_end, QTextCursor.KeepAnchor)
+                except (AttributeError, TypeError):
+                    cursor.setPosition(self.current_highlight_end, QtConstants.KeepAnchor)
+            
+            # Clear the formatting by setting to default
+            default_format = QTextCharFormat()
+            default_format.setForeground(QColor(255, 255, 255))  # White text
+            cursor.setCharFormat(default_format)
+            
+            # Clear the stored positions
+            self.current_highlight_start = None
+            self.current_highlight_end = None
 
     def load_config(self):
         try:
