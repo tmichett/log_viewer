@@ -5,18 +5,28 @@
 # Install uv for better Python dependency management
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Create and activate virtual environment
-uv venv log_viewer
-source log_viewer/bin/activate
+# Clean up any existing virtual environment
+rm -rf log_viewer_venv
 
-# Install all required dependencies with correct versions
-uv pip install PyInstaller PyQt6 PyYAML argparse
+# Create and activate virtual environment with different name to avoid conflicts
+uv venv log_viewer_venv
+source log_viewer_venv/bin/activate
+
+# Install all required dependencies from requirements.txt
+uv pip install -r requirements.txt
+
+# Install PyInstaller
+uv pip install PyInstaller
 
 # Build the executable
-pyinstaller rpmbuild/SOURCES/log_viewer.spec
+pyinstaller ./log_viewer.spec
 
-# Copy the built executable to SOURCES directory
-cp dist/log_viewer rpmbuild/SOURCES/ 
+# Copy the built executable to current directory (we're already in SOURCES)
+cp ./dist/log_viewer ./
+
+echo "Build completed successfully!"
+echo "Executable location: $(pwd)/log_viewer"
+echo "Executable size: $(du -h log_viewer | cut -f1)" 
 
 
 
