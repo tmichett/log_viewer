@@ -35,9 +35,6 @@ class QtConstants:
     # QTextCursor move mode constants
     KeepAnchor = 1      # QTextCursor.KeepAnchor
     
-    # Line wrap mode constants
-    NoWrap = 0      # QPlainTextEdit.NoWrap
-    WidgetWidth = 1 # QPlainTextEdit.WidgetWidth
     
     # Dialog result constants
     Accepted = 1    # QDialog.Accepted
@@ -1329,9 +1326,11 @@ class LogViewer(QMainWindow):
     
     def clear_search_highlights(self):
         """Clear all search highlights"""
+
         self.clear_current_highlight()
         
         # Clear the cursor selection
+
         cursor = self.text_editor.textCursor()
         cursor.clearSelection()
         self.text_editor.setTextCursor(cursor)
