@@ -14,10 +14,12 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QTextEdit,
                            QHBoxLayout, QLineEdit, QLabel, QListWidget, 
                            QColorDialog, QDialog, QFormLayout,
                            QDialogButtonBox, QMessageBox, QInputDialog,
-                           QProgressBar, QScrollBar, QPlainTextEdit)
+                           QProgressBar, QScrollBar, QPlainTextEdit, QMenuBar,
+                           QMenu, QTextBrowser, QScrollArea)
 from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette, QTextCursor
 from PyQt6.QtCore import (Qt, QRunnable, QThreadPool, pyqtSignal, QObject, 
                          pyqtSlot, QTimer, QSize)
+from PyQt6.QtGui import QShortcut, QKeySequence
 
 # Define constant values for Qt enums that might differ between PyQt versions
 class QtConstants:
@@ -147,6 +149,249 @@ class LogHighlighter(QSyntaxHighlighter):
         for term_info in self.highlight_terms:
             if term_info['term'] in text.lower():
                 self.setFormat(0, len(text), term_info['format'])
+
+class HelpDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Log Viewer Help")
+        self.resize(800, 600)
+        
+        # Set dark mode
+        palette = self.parent().palette()
+        self.setPalette(palette)
+        
+        layout = QVBoxLayout(self)
+        
+        # Create a text browser for the help content
+        self.help_browser = QTextBrowser()
+        self.help_browser.setStyleSheet("""
+            QTextBrowser {
+                background-color: #2b2b2b;
+                color: #ffffff;
+                border: 1px solid #3f3f3f;
+                font-family: monospace;
+                font-size: 12pt;
+            }
+        """)
+        
+        # Load help content
+        self.load_help_content()
+        
+        layout.addWidget(self.help_browser)
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 8px;
+                border-radius: 3px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+        """)
+        close_btn.clicked.connect(self.accept)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(close_btn)
+        layout.addLayout(btn_layout)
+    
+    def load_help_content(self):
+        """Load help content from file or provide built-in content"""
+        help_content = """
+        <html>
+        <head>
+            <style>
+                body { font-family: monospace; color: #ffffff; background-color: #2b2b2b; }
+                h1 { color: #4a9eff; }
+                h2 { color: #6ab7ff; }
+                h3 { color: #8ac5ff; }
+                code { background-color: #3f3f3f; padding: 2px 4px; border-radius: 2px; }
+                pre { background-color: #3f3f3f; padding: 10px; border-radius: 5px; }
+                ul { margin-left: 20px; }
+                li { margin-bottom: 5px; }
+            </style>
+        </head>
+        <body>
+            <h1>Log Viewer Help</h1>
+            
+            <h2>Getting Started</h2>
+            <h3>Opening Files</h3>
+            <ul>
+                <li><strong>Open File Button:</strong> Click "Open Log File" to browse and select a file</li>
+                <li><strong>Command Line:</strong> Run <code>log_viewer /path/to/file.log</code> to open a specific file</li>
+                <li><strong>Supported Formats:</strong> .log, .out, .txt, and other text files</li>
+            </ul>
+            
+            <h3>Basic Navigation</h3>
+            <ul>
+                <li><strong>Scroll:</strong> Use mouse wheel or scrollbar to navigate through the file</li>
+                <li><strong>Home/End:</strong> Jump to beginning or end of file</li>
+                <li><strong>Page Up/Down:</strong> Navigate by pages</li>
+            </ul>
+            
+            <h2>Search Functionality</h2>
+            <h3>Basic Search</h3>
+            <ol>
+                <li>Type your search term in the search box</li>
+                <li>Press Enter or click "Find" to start searching</li>
+                <li>Use "Find Next" and "Find Previous" to navigate through results</li>
+                <li>The entire line containing your search term will be highlighted in yellow</li>
+            </ol>
+            
+            <h3>Search Tips</h3>
+            <ul>
+                <li>Search is case-insensitive</li>
+                <li>Use specific terms to reduce result sets</li>
+                <li>The status bar shows current match position and total matches</li>
+                <li>Search results are cached for fast navigation</li>
+            </ul>
+            
+            <h2>Text Highlighting</h2>
+            <h3>Configurable Highlighting</h3>
+            <ol>
+                <li>Click "Configure Highlighting" button</li>
+                <li>Add terms you want to highlight in log files</li>
+                <li>Choose custom colors for each term</li>
+                <li>Save configurations for reuse</li>
+            </ol>
+            
+            <h3>Managing Highlight Terms</h3>
+            <ul>
+                <li><strong>Add:</strong> Click "Add Term" and enter the text to highlight</li>
+                <li><strong>Edit:</strong> Select a term and click "Edit Term" to modify it</li>
+                <li><strong>Remove:</strong> Select a term and click "Remove Term" to delete it</li>
+                <li><strong>Colors:</strong> Use the color picker to choose highlight colors</li>
+            </ul>
+            
+            <h2>Keyboard Shortcuts</h2>
+            <h3>File Operations</h3>
+            <ul>
+                <li><strong>Ctrl+O:</strong> Open file</li>
+                <li><strong>Ctrl+Q:</strong> Quit application</li>
+            </ul>
+            
+            <h3>Search Operations</h3>
+            <ul>
+                <li><strong>Ctrl+F:</strong> Focus search box</li>
+                <li><strong>Enter:</strong> Find first/next</li>
+                <li><strong>F3:</strong> Find next</li>
+                <li><strong>Shift+F3:</strong> Find previous</li>
+                <li><strong>Escape:</strong> Clear search</li>
+            </ul>
+            
+            <h2>Performance</h2>
+            <h3>Large Files</h3>
+            <ul>
+                <li>Files are loaded in chunks to prevent UI freezing</li>
+                <li>Progress bar shows loading status</li>
+                <li>Memory usage is optimized for large files</li>
+            </ul>
+            
+            <h2>Support</h2>
+            <p>For additional help or to report issues:</p>
+            <ul>
+                <li><strong>Email:</strong> tmichett@redhat.com</li>
+                <li><strong>Organization:</strong> Michette Technologies</li>
+            </ul>
+        </body>
+        </html>
+        """
+        self.help_browser.setHtml(help_content)
+
+class AboutDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About Log Viewer")
+        self.resize(350, 200)
+        
+        # Set dark mode
+        palette = self.parent().palette()
+        self.setPalette(palette)
+        
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+        
+        # Application info
+        app_label = QLabel("Log Viewer Application")
+        app_label.setStyleSheet("""
+            QLabel {
+                color: #ffffff;
+                font-size: 18pt;
+                font-weight: bold;
+                text-align: center;
+            }
+        """)
+        app_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(app_label)
+        
+        company_label = QLabel("Michette Technologies")
+        company_label.setStyleSheet("""
+            QLabel {
+                color: #ffffff;
+                font-size: 14pt;
+                text-align: center;
+            }
+        """)
+        company_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(company_label)
+        
+        version_label = QLabel("Version 2.0.0")
+        version_label.setStyleSheet("""
+            QLabel {
+                color: #ffffff;
+                font-size: 12pt;
+                text-align: center;
+            }
+        """)
+        version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(version_label)
+        
+        # Add some space
+        layout.addSpacing(20)
+        
+        # Additional info
+        info_label = QLabel("A powerful log file viewer with ANSI color support\nand configurable highlighting features.")
+        info_label.setStyleSheet("""
+            QLabel {
+                color: #cccccc;
+                font-size: 10pt;
+                text-align: center;
+            }
+        """)
+        info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+        
+        # Add stretch to push button to bottom
+        layout.addStretch()
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+                padding: 8px;
+                border-radius: 3px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #4f4f4f;
+            }
+        """)
+        close_btn.clicked.connect(self.accept)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(close_btn)
+        layout.addLayout(btn_layout)
 
 class ConfigDialog(QDialog):
     def __init__(self, parent=None, highlight_terms=None):
@@ -520,6 +765,12 @@ class LogViewer(QMainWindow):
         self.threadpool = QThreadPool()
         print(f"Maximum thread count: {self.threadpool.maxThreadCount()}")
 
+        # Create menu bar
+        self.create_menu_bar()
+
+        # Create keyboard shortcuts
+        self.create_shortcuts()
+
         self.set_dark_mode()
 
         central_widget = QWidget()
@@ -578,6 +829,8 @@ class LogViewer(QMainWindow):
             }
         """)
         self.search_input.returnPressed.connect(self.find_first)
+        # Add keyboard shortcut for search
+        self.search_input.setToolTip("Press Ctrl+F to focus search box")
         search_layout.addWidget(self.search_input)
         
         find_button = QPushButton("Find")
@@ -767,6 +1020,104 @@ class LogViewer(QMainWindow):
         self.search_timer = QTimer()
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.perform_search)
+
+    def create_menu_bar(self):
+        """Create the menu bar with File and Help menus"""
+        menubar = self.menuBar()
+        menubar.setStyleSheet("""
+            QMenuBar {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+            }
+            QMenuBar::item {
+                background-color: #3f3f3f;
+                color: white;
+                padding: 4px 8px;
+            }
+            QMenuBar::item:selected {
+                background-color: #4f4f4f;
+            }
+            QMenu {
+                background-color: #3f3f3f;
+                color: white;
+                border: 1px solid #555555;
+            }
+            QMenu::item {
+                background-color: #3f3f3f;
+                color: white;
+                padding: 4px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #4f4f4f;
+            }
+        """)
+        
+        # File menu
+        file_menu = menubar.addMenu("File")
+        
+        # Open action
+        open_action = file_menu.addAction("Open...")
+        open_action.setShortcut("Ctrl+O")
+        open_action.triggered.connect(self.open_file)
+        
+        file_menu.addSeparator()
+        
+        # Exit action
+        exit_action = file_menu.addAction("Exit")
+        exit_action.setShortcut("Ctrl+Q")
+        exit_action.triggered.connect(self.close)
+        
+        # Help menu
+        help_menu = menubar.addMenu("Help")
+        
+        # Help action
+        help_action = help_menu.addAction("Help")
+        help_action.setShortcut("F1")
+        help_action.triggered.connect(self.show_help)
+        
+        # About action
+        about_action = help_menu.addAction("About")
+        about_action.triggered.connect(self.show_about)
+
+    def show_help(self):
+        """Show the help dialog"""
+        help_dialog = HelpDialog(self)
+        help_dialog.exec()
+
+    def show_about(self):
+        """Show the about dialog"""
+        about_dialog = AboutDialog(self)
+        about_dialog.exec()
+
+    def create_shortcuts(self):
+        """Create keyboard shortcuts"""
+        # Search shortcuts
+        search_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        search_shortcut.activated.connect(self.focus_search)
+        
+        find_next_shortcut = QShortcut(QKeySequence("F3"), self)
+        find_next_shortcut.activated.connect(self.find_next)
+        
+        find_prev_shortcut = QShortcut(QKeySequence("Shift+F3"), self)
+        find_prev_shortcut.activated.connect(self.find_previous)
+        
+        # Clear search shortcut
+        clear_search_shortcut = QShortcut(QKeySequence("Escape"), self)
+        clear_search_shortcut.activated.connect(self.clear_search)
+
+    def focus_search(self):
+        """Focus the search input box"""
+        self.search_input.setFocus()
+        self.search_input.selectAll()
+
+    def clear_search(self):
+        """Clear the search input and highlights"""
+        self.search_input.clear()
+        self.clear_search_highlights()
+        self.search_results = []
+        self.current_search_index = -1
+        self.status_label.setText("Search cleared")
 
     def set_dark_mode(self):
         # Set dark mode palette for the main window

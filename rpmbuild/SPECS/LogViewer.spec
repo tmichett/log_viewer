@@ -1,5 +1,5 @@
 %define name LogViewer
-%define version 1.5.0
+%define version 2.0.0
 %define release 0
 %define buildroot %{_tmppath}/%{name}-%{version}-%{release}-root
 
@@ -59,6 +59,21 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Sat Jul 11 2025 Log Viewer Build <tmichett@redhat.com> - 2.0.0-0
+- Enhanced search functionality with entire line highlighting
+- Added bidirectional search navigation (Find Next/Find Previous)
+- Improved search highlighting with proper cleanup of previous highlights
+- Added comprehensive help system with integrated Help menu
+- Added professional About dialog with version and company information
+- Implemented keyboard shortcuts (Ctrl+F, F1, F3, Shift+F3, Escape)
+- Added File menu with Open and Exit options
+- Created comprehensive README documentation with installation and usage guides
+- Fixed build script issues and improved build process reliability
+- Enhanced PyQt version compatibility with multiple fallback approaches
+- Added focus management for search functionality
+- Improved user interface with tooltips and better navigation
+- Added support for clearing search results with Escape key
+
 * Tue May 27 2025 Log Viewer Build <tmichett@redhat.com> - 1.3.1-0
 - Major performance improvements for file loading
 - Switched to more efficient QPlainTextEdit for text display
