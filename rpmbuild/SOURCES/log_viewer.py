@@ -111,6 +111,9 @@ class LogHighlighter(QSyntaxHighlighter):
         # Default cornflower blue color for highlighting with black text
         self.default_highlight_format.setBackground(QColor(100, 149, 237))
         self.default_highlight_format.setForeground(QColor(0, 0, 0))
+        # Track search-highlighted areas to avoid overriding them
+        self.search_highlighted_start = None
+        self.search_highlighted_end = None
 
     def set_highlight_terms(self, terms):
         self.highlight_terms = []
@@ -142,7 +145,31 @@ class LogHighlighter(QSyntaxHighlighter):
                 })
         self.rehighlight()
 
+    def set_search_highlight_range(self, start_pos, end_pos):
+        """Set the range that is currently search-highlighted to avoid overriding it"""
+        self.search_highlighted_start = start_pos
+        self.search_highlighted_end = end_pos
+
+    def clear_search_highlight_range(self):
+        """Clear the search-highlighted range"""
+        self.search_highlighted_start = None
+        self.search_highlighted_end = None
+
     def highlightBlock(self, text):
+        # Get the current block's position in the document
+        block = self.currentBlock()
+        block_start = block.position()
+        block_end = block_start + block.length()
+        
+        # Check if this block overlaps with search-highlighted area
+        if (self.search_highlighted_start is not None and 
+            self.search_highlighted_end is not None):
+            # If this block overlaps with search highlighting, don't apply config highlighting
+            if (block_start < self.search_highlighted_end and 
+                block_end > self.search_highlighted_start):
+                return
+        
+        # Apply config-based highlighting only if not in search-highlighted area
         for term_info in self.highlight_terms:
             if term_info['term'] in text.lower():
                 self.setFormat(0, len(text), term_info['format'])
@@ -1112,6 +1139,8 @@ class LogViewer(QMainWindow):
         """Clear the search input and highlights"""
         self.search_input.clear()
         self.clear_search_highlights()
+        # Clear the search highlight range from LogHighlighter
+        self.highlighter.clear_search_highlight_range()
         self.search_results = []
         self.current_search_index = -1
         self.status_label.setText("Search cleared")
@@ -1150,6 +1179,9 @@ class LogViewer(QMainWindow):
             
         # Remove any existing highlights
         self.clear_search_highlights()
+        
+        # Clear the search highlight range from LogHighlighter
+        self.highlighter.clear_search_highlight_range()
         
         # Reset search index and clear stored positions
         self.current_search_index = -1
@@ -1295,6 +1327,9 @@ class LogViewer(QMainWindow):
         self.current_highlight_start = cursor.selectionStart()
         self.current_highlight_end = cursor.selectionEnd()
         
+        # Inform the LogHighlighter about the search-highlighted range
+        self.highlighter.set_search_highlight_range(self.current_highlight_start, self.current_highlight_end)
+        
         # Apply yellow highlighting to the entire line
         cursor.setCharFormat(self.search_highlight_format)
         
@@ -1338,6 +1373,9 @@ class LogViewer(QMainWindow):
     def clear_current_highlight(self):
         """Clear the current line highlight"""
         if self.current_highlight_start is not None and self.current_highlight_end is not None:
+            # Clear the search highlight range from LogHighlighter first
+            self.highlighter.clear_search_highlight_range()
+            
             # Create a new cursor to clear the formatting
             cursor = self.text_editor.textCursor()
             cursor.setPosition(self.current_highlight_start)
@@ -1359,6 +1397,9 @@ class LogViewer(QMainWindow):
             # Clear the stored positions
             self.current_highlight_start = None
             self.current_highlight_end = None
+            
+            # Trigger rehighlighting to restore config-based highlights
+            self.highlighter.rehighlight()
 
     def load_config(self):
         try:

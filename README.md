@@ -56,7 +56,7 @@ The application requires the following Python packages:
 #### Method 1: RPM Package (Recommended for Red Hat/Fedora)
 ```bash
 # Install the RPM package
-sudo rpm -ivh LogViewer-1.5.0-0.rpm
+sudo rpm -ivh LogViewer-2.0.0-0.rpm
 
 # Launch the application
 logviewer
@@ -247,11 +247,17 @@ For technical support, bug reports, or feature requests, please contact:
 
 ## Version History
 
-### Version 1.5.0 (Current)
+### Version 2.0.0 (Current)
 - Enhanced search functionality with entire line highlighting
-- Added Find Previous/Next navigation
-- Improved highlighting performance
-- Better PyQt version compatibility
+- Added bidirectional search navigation (Find Next/Find Previous)
+- Improved search highlighting with proper cleanup of previous highlights
+- Added comprehensive help system with integrated Help menu
+- Added professional About dialog with version and company information
+- Implemented keyboard shortcuts (Ctrl+F, F1, F3, Shift+F3, Escape)
+- Added File menu with Open and Exit options
+- Created comprehensive README documentation with installation and usage guides
+- Fixed build script issues and improved build process reliability
+- Enhanced PyQt version compatibility with multiple fallback approaches
 
 ### Version 1.3.1
 - Major performance improvements for file loading
