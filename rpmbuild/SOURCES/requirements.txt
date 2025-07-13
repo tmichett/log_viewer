@@ -1,3 +1,11 @@
-PyQt6==6.4.2
-PyYAML==6.0.1
-ansi2html==1.9.2
+# Log Viewer Requirements
+# Compatible with Windows, macOS, and Linux
+
+# Core GUI Framework
+PyQt6>=6.4.0
+
+# YAML configuration support
+PyYAML>=6.0
+
+# Platform detection (built-in, but explicit for clarity)
+# platform module is built-in to Python
