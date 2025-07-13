@@ -7,5 +7,8 @@ PyQt6>=6.4.0
 # YAML configuration support
 PyYAML>=6.0
 
+# Image processing for icon conversion (required for PyInstaller on Windows)
+Pillow>=9.0.0
+
 # Platform detection (built-in, but explicit for clarity)
 # platform module is built-in to Python
