@@ -73,42 +73,11 @@ jobs:
           path: rpmbuild/SOURCES/LogViewer-3.0.0-macOS.dmg
           retention-days: 30
           
-      - name: Create Release Draft (on tag)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Create Release Draft
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Log Viewer ${{ github.ref_name }}
-          draft: true
-          body: |
-            ## Log Viewer ${{ github.ref_name }} - macOS Release
-            
-            ### Features
-            - Cross-platform log file viewer
-            - Support for .log, .out, .txt files
-            - ANSI color support
-            - Configurable highlighting
-            - Fast search functionality
-            - Dark theme interface
-            
-            ### macOS Installation
-            1. Download the DMG file below
-            2. Open the DMG file
-            3. Drag "Log Viewer.app" to Applications folder
-            4. Launch from Applications or Launchpad
-            
-            ### System Requirements
-            - macOS 10.14 (Mojave) or later
-            - 64-bit Intel or Apple Silicon Mac
-            
-            ### Configuration
-            - Configuration files stored in `~/Library/Application Support/LogViewer/`
-            - Supports custom highlighting configurations
-            - Retina display optimized
-            
-            ### Support
-            - Email: tmichett@redhat.com
-            - Organization: Michette Technologies
+          tag_name: ${{ github.ref_name }} # Use the tag name that triggered the workflow
+          draft: true # Create the release as a draft
           files: |
             rpmbuild/SOURCES/LogViewer-3.0.0-macOS.dmg
         env:
