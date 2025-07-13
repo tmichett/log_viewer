@@ -1,0 +1,89 @@
+@echo off
+REM Script to Build Windows Executable
+REM Author: tmichett@redhat.com
+
+echo ============================================
+echo Log Viewer - Windows Build Process
+echo ============================================
+
+REM Get the directory where this script is located
+cd /d "%~dp0"
+echo Script directory: %CD%
+
+REM Check if Python is installed
+python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Error: Python is not installed or not in PATH
+    echo Please install Python from https://www.python.org/
+    pause
+    exit /b 1
+)
+
+REM Check if pip is available
+pip --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Error: pip is not available
+    echo Please ensure pip is installed with Python
+    pause
+    exit /b 1
+)
+
+REM Clean up any existing build artifacts
+echo Cleaning up previous build artifacts...
+if exist "build" rmdir /s /q "build"
+if exist "dist" rmdir /s /q "dist"
+if exist "LogViewer.exe" del /f /q "LogViewer.exe"
+if exist "log_viewer_venv" rmdir /s /q "log_viewer_venv"
+
+REM Create virtual environment
+echo Creating virtual environment...
+python -m venv log_viewer_venv
+
+REM Activate virtual environment
+echo Activating virtual environment...
+call log_viewer_venv\Scripts\activate.bat
+
+REM Upgrade pip
+echo Upgrading pip...
+python -m pip install --upgrade pip
+
+REM Install dependencies
+echo Installing dependencies from requirements.txt...
+pip install -r requirements.txt
+
+REM Install PyInstaller
+echo Installing PyInstaller...
+pip install PyInstaller
+
+REM Build the executable
+echo Building Windows executable...
+pyinstaller --noconfirm log_viewer_windows.spec
+
+REM Check if build was successful
+if exist "dist\LogViewer.exe" (
+    echo Copying executable to current directory...
+    copy "dist\LogViewer.exe" "LogViewer.exe"
+    
+    echo.
+    echo Build completed successfully!
+    echo Executable location: %CD%\LogViewer.exe
+    
+    REM Get file size
+    for %%A in ("LogViewer.exe") do (
+        echo Executable size: %%~zA bytes
+    )
+    
+    echo.
+    echo You can now run LogViewer.exe
+) else (
+    echo Error: Build failed - executable not found in dist/
+    pause
+    exit /b 1
+)
+
+REM Deactivate virtual environment
+deactivate
+
+echo.
+echo Build process completed!
+pause 

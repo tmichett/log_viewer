@@ -24,7 +24,7 @@ jobs:
 
       # In this job, all steps begin with a name
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Create Python Compiled application
         run: bash rpmbuild/SOURCES/Build_App.sh 
@@ -33,7 +33,7 @@ jobs:
         run: bash ./RPM_Build_Clean.sh && ./RPM_Build.sh
 
       - name: Create Release Draft
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }} # Use the tag name that triggered the workflow
           draft: true # Create the release as a draft

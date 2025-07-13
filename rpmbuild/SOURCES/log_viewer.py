@@ -5,6 +5,7 @@ import os
 import argparse
 import time
 import warnings
+import platform
 
 # Suppress deprecation warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -18,8 +19,49 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QTextEdit,
                            QMenu, QTextBrowser, QScrollArea)
 from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette, QTextCursor
 from PyQt6.QtCore import (Qt, QRunnable, QThreadPool, pyqtSignal, QObject, 
-                         pyqtSlot, QTimer, QSize)
+                         pyqtSlot, QTimer, QSize, QStandardPaths)
 from PyQt6.QtGui import QShortcut, QKeySequence
+
+# Windows-specific font handling
+def get_monospace_font():
+    """Get the best monospace font for the current platform"""
+    if platform.system() == 'Windows':
+        # Windows preferred monospace fonts in order of preference
+        fonts = ['Consolas', 'Courier New', 'Lucida Console', 'monospace']
+    elif platform.system() == 'Darwin':  # macOS
+        fonts = ['Monaco', 'Menlo', 'Courier New', 'monospace']
+    else:  # Linux and others
+        fonts = ['DejaVu Sans Mono', 'Liberation Mono', 'monospace']
+    
+    # Return the first font in the list (CSS will fall back to next if not available)
+    return ', '.join(fonts)
+
+# Cross-platform configuration path handling
+def get_config_path():
+    """Get the appropriate configuration file path for the current platform"""
+    if platform.system() == 'Windows':
+        # Use Windows AppData directory for configuration
+        app_data = os.environ.get('APPDATA', os.path.expanduser('~'))
+        config_dir = os.path.join(app_data, 'LogViewer')
+        if not os.path.exists(config_dir):
+            try:
+                os.makedirs(config_dir)
+            except OSError:
+                pass
+        return os.path.join(config_dir, 'config.yml')
+    elif platform.system() == 'Darwin':  # macOS
+        # Use macOS Application Support directory
+        app_support = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support')
+        config_dir = os.path.join(app_support, 'LogViewer')
+        if not os.path.exists(config_dir):
+            try:
+                os.makedirs(config_dir)
+            except OSError:
+                pass
+        return os.path.join(config_dir, 'config.yml')
+    else:
+        # Use current directory for other platforms (Linux, etc.)
+        return 'config.yml'
 
 # Define constant values for Qt enums that might differ between PyQt versions
 class QtConstants:
@@ -188,14 +230,14 @@ class HelpDialog(QDialog):
         
         # Create a text browser for the help content
         self.help_browser = QTextBrowser()
-        self.help_browser.setStyleSheet("""
-            QTextBrowser {
+        self.help_browser.setStyleSheet(f"""
+            QTextBrowser {{
                 background-color: #2b2b2b;
                 color: #ffffff;
                 border: 1px solid #3f3f3f;
-                font-family: monospace;
+                font-family: {get_monospace_font()};
                 font-size: 12pt;
-            }
+            }}
         """)
         
         # Load help content
@@ -248,7 +290,8 @@ class HelpDialog(QDialog):
             <h3>Opening Files</h3>
             <ul>
                 <li><strong>Open File Button:</strong> Click "Open Log File" to browse and select a file</li>
-                <li><strong>Command Line:</strong> Run <code>log_viewer /path/to/file.log</code> to open a specific file</li>
+                <li><strong>Command Line:</strong> Run <code>log_viewer.py /path/to/file.log</code> to open a specific file</li>
+                <li><strong>Windows:</strong> Run <code>python log_viewer.py C:\\path\\to\\file.log</code></li>
                 <li><strong>Supported Formats:</strong> .log, .out, .txt, and other text files</li>
             </ul>
             
@@ -317,6 +360,29 @@ class HelpDialog(QDialog):
                 <li>Memory usage is optimized for large files</li>
             </ul>
             
+            <h2>Platform-Specific Notes</h2>
+            <h3>Windows</h3>
+            <ul>
+                <li>Configuration files are stored in <code>%APPDATA%\\LogViewer\\</code></li>
+                <li>Use Windows-style paths (e.g., <code>C:\\path\\to\\file.log</code>)</li>
+                <li>The application supports high DPI displays</li>
+            </ul>
+            
+            <h3>macOS</h3>
+            <ul>
+                <li>Configuration files are stored in <code>~/Library/Application Support/LogViewer/</code></li>
+                <li>Use Unix-style paths (e.g., <code>/path/to/file.log</code>)</li>
+                <li>The application supports Retina displays</li>
+                <li>Use Cmd+O to open files and Cmd+Q to quit</li>
+            </ul>
+            
+            <h3>Linux</h3>
+            <ul>
+                <li>Configuration files are stored in the current directory</li>
+                <li>Use Unix-style paths (e.g., <code>/path/to/file.log</code>)</li>
+                <li>The application supports high DPI displays</li>
+            </ul>
+            
             <h2>Support</h2>
             <p>For additional help or to report issues:</p>
             <ul>
@@ -365,7 +431,7 @@ class AboutDialog(QDialog):
         company_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(company_label)
         
-        version_label = QLabel("Version 2.0.0")
+        version_label = QLabel("Version 3.0.0")
         version_label.setStyleSheet("""
             QLabel {
                 color: #ffffff;
@@ -640,12 +706,14 @@ class ConfigDialog(QDialog):
     
     def save_config(self):
         file_name, _ = QFileDialog.getSaveFileName(
-            self, "Save Configuration", "", "YAML Files (*.yml);;All Files (*)"
+            self, "Save Configuration", 
+            os.path.expanduser("~"),  # Start in user's home directory
+            "YAML Files (*.yml);;All Files (*)"
         )
         if file_name:
             try:
                 config = {'highlight_terms': self.highlight_terms}
-                with open(file_name, 'w') as f:
+                with open(file_name, 'w', encoding='utf-8') as f:
                     yaml.dump(config, f, default_flow_style=False)
                 QMessageBox.information(self, "Success", f"Configuration saved to {file_name}")
             except Exception as e:
@@ -676,27 +744,66 @@ class FileLoaderWorker(QRunnable):
             # Count total chunks for progress reporting
             total_chunks = (file_size // self.chunk_size) + (1 if file_size % self.chunk_size else 0)
             
-            with open(self.file_path, 'r', errors='replace') as f:
-                bytes_read = 0
-                chunk_number = 0
-                
-                while True:
-                    chunk = f.read(self.chunk_size)
-                    if not chunk:
+            # Try different encodings for Windows compatibility
+            encodings = ['utf-8', 'utf-16', 'cp1252', 'latin-1']
+            file_opened = False
+            
+            for encoding in encodings:
+                try:
+                    with open(self.file_path, 'r', encoding=encoding, errors='replace') as f:
+                        bytes_read = 0
+                        chunk_number = 0
+                        
+                        while True:
+                            chunk = f.read(self.chunk_size)
+                            if not chunk:
+                                break
+                                
+                            chunk_number += 1
+                            bytes_read += len(chunk.encode('utf-8'))
+                            progress = int((bytes_read / file_size) * 100)
+                            
+                            # Emit the chunk for immediate display
+                            self.signals.chunk_ready.emit(chunk, chunk_number, total_chunks)
+                            
+                            # Emit progress update
+                            self.signals.progress.emit(progress)
+                            
+                            # Small sleep to allow UI updates
+                            time.sleep(0.01)
+                        
+                        file_opened = True
                         break
                         
-                    chunk_number += 1
-                    bytes_read += len(chunk.encode('utf-8'))
-                    progress = int((bytes_read / file_size) * 100)
+                except UnicodeDecodeError:
+                    continue
+            
+            if not file_opened:
+                # Fallback to binary mode if all encodings fail
+                with open(self.file_path, 'rb') as f:
+                    bytes_read = 0
+                    chunk_number = 0
                     
-                    # Emit the chunk for immediate display
-                    self.signals.chunk_ready.emit(chunk, chunk_number, total_chunks)
-                    
-                    # Emit progress update
-                    self.signals.progress.emit(progress)
-                    
-                    # Small sleep to allow UI updates
-                    time.sleep(0.01)
+                    while True:
+                        chunk_bytes = f.read(self.chunk_size)
+                        if not chunk_bytes:
+                            break
+                            
+                        # Decode bytes to string, replacing invalid characters
+                        chunk = chunk_bytes.decode('utf-8', errors='replace')
+                        
+                        chunk_number += 1
+                        bytes_read += len(chunk_bytes)
+                        progress = int((bytes_read / file_size) * 100)
+                        
+                        # Emit the chunk for immediate display
+                        self.signals.chunk_ready.emit(chunk, chunk_number, total_chunks)
+                        
+                        # Emit progress update
+                        self.signals.progress.emit(progress)
+                        
+                        # Small sleep to allow UI updates
+                        time.sleep(0.01)
             
             # Signal completion
             self.signals.finished.emit()
@@ -779,7 +886,7 @@ class LogViewer(QMainWindow):
         
         self.current_font_size = 12
         self.ansi_parser = AnsiColorParser()
-        self.config_path = 'config.yml'
+        self.config_path = get_config_path()  # Use platform-appropriate config path
         self.highlight_terms = []
         self.loading_file = False
         self.current_file = None
@@ -809,7 +916,7 @@ class LogViewer(QMainWindow):
                 color: #ffffff;
                 border: 1px solid #3f3f3f;
                 font-size: {self.current_font_size}pt;
-                font-family: monospace;
+                font-family: {get_monospace_font()};
             }}
         """)
         layout.addWidget(self.text_editor)
@@ -1404,7 +1511,7 @@ class LogViewer(QMainWindow):
     def load_config(self):
         try:
             if os.path.exists(self.config_path):
-                with open(self.config_path, 'r') as f:
+                with open(self.config_path, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
                     if 'highlight_terms' in config:
                         self.highlight_terms = config['highlight_terms']
@@ -1414,7 +1521,7 @@ class LogViewer(QMainWindow):
                 # Load default config if no custom config exists
                 default_config_path = 'config.yml'
                 if os.path.exists(default_config_path) and self.config_path != default_config_path:
-                    with open(default_config_path, 'r') as f:
+                    with open(default_config_path, 'r', encoding='utf-8') as f:
                         config = yaml.safe_load(f)
                         if 'highlight_terms' in config:
                             self.highlight_terms = config['highlight_terms']
@@ -1426,7 +1533,9 @@ class LogViewer(QMainWindow):
 
     def load_custom_config(self):
         file_name, _ = QFileDialog.getOpenFileName(
-            self, "Load Configuration", "", "YAML Files (*.yml);;All Files (*)"
+            self, "Load Configuration", 
+            os.path.expanduser("~"),  # Start in user's home directory
+            "YAML Files (*.yml);;All Files (*)"
         )
         if file_name:
             try:
@@ -1481,7 +1590,7 @@ class LogViewer(QMainWindow):
                 color: #ffffff;
                 border: 1px solid #3f3f3f;
                 font-size: {self.current_font_size}pt;
-                font-family: monospace;
+                font-family: {get_monospace_font()};
             }}
         """)
 
@@ -1489,7 +1598,7 @@ class LogViewer(QMainWindow):
         file_name, _ = QFileDialog.getOpenFileName(
             self, 
             "Open Log File", 
-            "", 
+            os.path.expanduser("~"),  # Start in user's home directory
             "Log Files (*.log *.out *.txt);;Log Files (*.log);;Output Files (*.out);;Text Files (*.txt);;All Files (*)"
         )
         if file_name:
@@ -1575,12 +1684,47 @@ class LogViewer(QMainWindow):
 
 def main():
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description='Log Viewer')
+    parser = argparse.ArgumentParser(description='Log Viewer - Cross-Platform Compatible')
     parser.add_argument('--config', help='Path to custom config.yml file')
     parser.add_argument('file', nargs='?', help='Log file to open (.log, .out, .txt, or any text file)')
     args = parser.parse_args()
     
     app = QApplication(sys.argv)
+    
+    # Set application properties for all platforms
+    app.setOrganizationName("Michette Technologies")
+    app.setApplicationName("Log Viewer")
+    app.setApplicationVersion("3.0.0")
+    
+    # Platform-specific application settings
+    if platform.system() == 'Windows':
+        # Enable high DPI support for Windows (with error handling for different PyQt6 versions)
+        try:
+            # Try PyQt6 style first
+            app.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
+            app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
+        except AttributeError:
+            try:
+                # Try alternative PyQt6 attribute names
+                app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+                app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+            except AttributeError:
+                # If high DPI attributes don't exist, continue without them
+                print("Note: High DPI scaling attributes not available in this PyQt6 version")
+    elif platform.system() == 'Darwin':  # macOS
+        # Enable high DPI support for macOS
+        try:
+            app.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
+            app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
+        except AttributeError:
+            try:
+                app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+                app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+            except AttributeError:
+                print("Note: High DPI scaling attributes not available in this PyQt6 version")
+        
+        # Set macOS-specific application properties
+        app.setApplicationDisplayName("Log Viewer")
     
     # Apply performance optimization settings
     app.setStyle('Fusion')  # Use Fusion style for better performance

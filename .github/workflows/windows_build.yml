@@ -1,0 +1,161 @@
+# GitHub Workflow for Windows Executable and Installer Creation
+name: Build Windows App
+
+# Controls when the workflow will run
+on:
+  push:
+    branches:
+      - main
+      - log-viewer-windows-test
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    environment: deploy
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Inno Setup
+        run: |
+          # Download and install Inno Setup
+          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
+          Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait
+          
+      - name: Add Inno Setup to PATH
+        run: |
+          echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          
+      - name: Create Windows Executable
+        run: |
+          cd rpmbuild/SOURCES
+          # Create virtual environment
+          python -m venv log_viewer_venv
+          
+          # Activate virtual environment
+          .\log_viewer_venv\Scripts\Activate.ps1
+          
+          # Upgrade pip
+          python -m pip install --upgrade pip
+          
+          # Install dependencies
+          pip install -r requirements.txt
+          
+          # Install PyInstaller
+          pip install PyInstaller
+          
+          # Build executable
+          pyinstaller --noconfirm log_viewer_windows.spec
+          
+          # Copy executable to current directory
+          Copy-Item "dist\LogViewer.exe" -Destination "LogViewer.exe"
+          
+          # Verify executable was created
+          if (Test-Path "LogViewer.exe") {
+            Write-Host "✓ Executable created successfully"
+            $size = (Get-Item "LogViewer.exe").Length
+            Write-Host "Executable size: $size bytes"
+          } else {
+            Write-Error "✗ Executable creation failed"
+            exit 1
+          }
+          
+      - name: Create Windows Installer
+        run: |
+          cd rpmbuild/SOURCES
+          
+          # Verify Inno Setup is available
+          try {
+            & iscc /? | Out-Null
+            Write-Host "✓ Inno Setup found"
+          } catch {
+            Write-Error "✗ Inno Setup not found"
+            exit 1
+          }
+          
+          # Create installer
+          iscc LogViewer_Installer.iss
+          
+          # Verify installer was created
+          if (Test-Path "installer\LogViewer-3.0.0-Setup.exe") {
+            Write-Host "✓ Installer created successfully"
+            $size = (Get-Item "installer\LogViewer-3.0.0-Setup.exe").Length
+            Write-Host "Installer size: $size bytes"
+          } else {
+            Write-Error "✗ Installer creation failed"
+            exit 1
+          }
+          
+      - name: Test Executable
+        run: |
+          cd rpmbuild/SOURCES
+          
+          # Test executable can run
+          try {
+            $process = Start-Process -FilePath "LogViewer.exe" -ArgumentList "--help" -Wait -PassThru -NoNewWindow
+            if ($process.ExitCode -eq 0) {
+              Write-Host "✓ Executable test passed"
+            } else {
+              Write-Host "⚠ Executable test returned exit code: $($process.ExitCode)"
+            }
+          } catch {
+            Write-Host "⚠ Executable test failed: $($_.Exception.Message)"
+          }
+          
+      - name: Upload Executable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LogViewer-Windows-Executable
+          path: rpmbuild/SOURCES/LogViewer.exe
+          
+      - name: Upload Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LogViewer-Windows-Installer
+          path: rpmbuild/SOURCES/installer/LogViewer-3.0.0-Setup.exe
+          
+      - name: Create Release Assets (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            rpmbuild/SOURCES/LogViewer.exe
+            rpmbuild/SOURCES/installer/LogViewer-3.0.0-Setup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Build Summary
+        run: |
+          cd rpmbuild/SOURCES
+          Write-Host "============================================"
+          Write-Host "Windows Build Summary"
+          Write-Host "============================================"
+          
+          if (Test-Path "LogViewer.exe") {
+            $size = (Get-Item "LogViewer.exe").Length
+            Write-Host "✓ Executable: LogViewer.exe ($size bytes)"
+          } else {
+            Write-Host "✗ Executable: Not found"
+          }
+          
+          if (Test-Path "installer\LogViewer-3.0.0-Setup.exe") {
+            $size = (Get-Item "installer\LogViewer-3.0.0-Setup.exe").Length
+            Write-Host "✓ Installer: LogViewer-3.0.0-Setup.exe ($size bytes)"
+          } else {
+            Write-Host "✗ Installer: Not found"
+          }
+          
+          Write-Host "============================================" 

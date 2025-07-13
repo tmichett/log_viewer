@@ -156,4 +156,4 @@ For additional help or to report issues:
 
 ## Version Information
 
-This help system is for Log Viewer Application version 2.0.0. 
+This help system is for Log Viewer Application version 3.0.0. 

@@ -1,5 +1,5 @@
 %define name LogViewer
-%define version 2.0.0
+%define version 3.0.0
 %define release 0
 %define buildroot %{_tmppath}/%{name}-%{version}-%{release}-root
 
@@ -59,7 +59,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Sat Jul 11 2025 Log Viewer Build <tmichett@redhat.com> - 2.0.0-0
+* Sat Jul 11 2025 Log Viewer Build <tmichett@redhat.com> - 3.0.0-0
 - Enhanced search functionality with entire line highlighting
 - Added bidirectional search navigation (Find Next/Find Previous)
 - Improved search highlighting with proper cleanup of previous highlights
