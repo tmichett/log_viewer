@@ -51,7 +51,7 @@ Source: "test.log"; DestDir: "{app}"; Flags: ignoreversion
 Source: "smallicon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "smallicon.png"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README_Windows.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]
