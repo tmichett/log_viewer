@@ -160,7 +160,7 @@ For help or to report issues:
 
 ## 📜 License & Version
 
-- **Version**: 2.0.0
+- **Version**: 3.0.0
 - **Build Date**: 2024
 - **Platform**: Windows 10/11 (64-bit)
 - **Built with**: Python 3.12, PyQt6, PyInstaller

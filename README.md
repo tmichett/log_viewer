@@ -53,13 +53,33 @@ The application requires the following Python packages:
 
 ### Installation Methods
 
-#### Method 1: RPM Package (Recommended for Red Hat/Fedora)
+#### Method 1: Platform-Specific Packages
+
+##### Linux (RPM - Recommended for Red Hat/Fedora)
 ```bash
 # Install the RPM package
-sudo rpm -ivh LogViewer-2.0.0-0.rpm
+sudo rpm -ivh LogViewer-3.0.0-0.rpm
 
 # Launch the application
 logviewer
+```
+
+##### macOS (DMG - Recommended)
+```bash
+# Download and mount the DMG
+open LogViewer-3.0.0-macOS.dmg
+
+# Drag "Log Viewer.app" to Applications folder
+# Launch from Applications or Launchpad
+```
+
+##### Windows (EXE/Installer)
+```bash
+# Option 1: Download and run the installer
+LogViewer-3.0.0-Setup.exe
+
+# Option 2: Run the portable executable directly
+LogViewer.exe
 ```
 
 #### Method 2: Source Installation
@@ -76,6 +96,8 @@ python log_viewer.py
 ```
 
 #### Method 3: Build from Source
+
+##### Linux/General
 ```bash
 # Build the standalone executable
 cd rpmbuild/SOURCES
@@ -83,6 +105,26 @@ cd rpmbuild/SOURCES
 
 # Run the built executable
 ./log_viewer
+```
+
+##### macOS
+```bash
+# Build macOS app bundle
+cd rpmbuild/SOURCES
+./Build_App_MacOS.sh
+
+# Create DMG package
+./Create_DMG_MacOS.sh
+
+# Or build everything at once
+./Build_All_MacOS.sh
+```
+
+##### Windows
+```bash
+# Use the existing Windows build process
+cd rpmbuild/SOURCES
+pyinstaller LogViewer.spec
 ```
 
 ## Usage
@@ -164,11 +206,24 @@ highlight_terms:
 - **Search Performance**: Cached results for fast navigation
 - **UI Responsiveness**: Non-blocking operations with progress feedback
 
-### Compatibility
+### Platform Compatibility
+
+| Platform | Support | Package Format | Configuration Path |
+|----------|---------|----------------|-------------------|
+| **Linux** | ✅ Full | RPM, Source | `./config.yml` |
+| **macOS** | ✅ Full | DMG (App Bundle) | `~/Library/Application Support/LogViewer/` |
+| **Windows** | ✅ Full | EXE, Source | `%APPDATA%\LogViewer\` |
+
+### System Requirements
+- **Linux**: Any modern distribution, Python 3.8+
+- **macOS**: macOS 10.14 (Mojave) or later, Intel/Apple Silicon
+- **Windows**: Windows 10 or later, Python 3.8+ (for source)
+
+### Technical Compatibility
 - **PyQt Versions**: Compatible with PyQt6 and PyQt5 (with compatibility layer)
 - **Python Versions**: 3.8+ supported
-- **Operating Systems**: Linux, macOS, Windows
-- **File Formats**: Any text-based format
+- **File Formats**: Any text-based format (.log, .out, .txt, etc.)
+- **File Encoding**: UTF-8, UTF-16, CP1252, Latin-1 with auto-detection
 
 ## Development
 
@@ -187,7 +242,9 @@ log_viewer/
 └── documentation/        # Additional docs
 ```
 
-### Building the Application
+### Building for Different Platforms
+
+#### Linux
 ```bash
 # Build standalone executable
 cd rpmbuild/SOURCES
@@ -197,6 +254,36 @@ cd rpmbuild/SOURCES
 cd ../..
 ./RPM_Build.sh
 ```
+
+#### macOS
+```bash
+# Build app bundle and DMG
+cd rpmbuild/SOURCES
+./Build_All_MacOS.sh
+
+# Or build individually:
+./Build_App_MacOS.sh      # Creates app bundle
+./Create_DMG_MacOS.sh     # Creates DMG installer
+```
+
+#### Windows
+```bash
+# Build executable and installer
+cd rpmbuild/SOURCES
+Build_All_Windows.bat
+
+# Or build individually:
+Build_App_Windows.bat          # Creates LogViewer.exe
+# Then use Inno Setup to compile LogViewer_Installer.iss for installer
+
+# Manual build using PyInstaller:
+pyinstaller --noconfirm log_viewer_windows.spec
+```
+
+#### Cross-Platform GitHub Actions
+- **Linux RPM**: `.github/workflows/rpm_build.yml`
+- **macOS DMG**: `.github/workflows/macos_build.yml`
+- **Windows EXE/Installer**: `.github/workflows/windows_build.yml`
 
 ### Contributing
 1. Fork the repository
@@ -247,7 +334,7 @@ For technical support, bug reports, or feature requests, please contact:
 
 ## Version History
 
-### Version 2.0.0 (Current)
+### Version 3.0.0 (Current)
 - Enhanced search functionality with entire line highlighting
 - Added bidirectional search navigation (Find Next/Find Previous)
 - Improved search highlighting with proper cleanup of previous highlights

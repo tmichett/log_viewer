@@ -36,7 +36,7 @@ def get_monospace_font():
     # Return the first font in the list (CSS will fall back to next if not available)
     return ', '.join(fonts)
 
-# Windows-specific configuration path handling
+# Cross-platform configuration path handling
 def get_config_path():
     """Get the appropriate configuration file path for the current platform"""
     if platform.system() == 'Windows':
@@ -49,8 +49,18 @@ def get_config_path():
             except OSError:
                 pass
         return os.path.join(config_dir, 'config.yml')
+    elif platform.system() == 'Darwin':  # macOS
+        # Use macOS Application Support directory
+        app_support = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support')
+        config_dir = os.path.join(app_support, 'LogViewer')
+        if not os.path.exists(config_dir):
+            try:
+                os.makedirs(config_dir)
+            except OSError:
+                pass
+        return os.path.join(config_dir, 'config.yml')
     else:
-        # Use current directory for other platforms
+        # Use current directory for other platforms (Linux, etc.)
         return 'config.yml'
 
 # Define constant values for Qt enums that might differ between PyQt versions
@@ -350,10 +360,26 @@ class HelpDialog(QDialog):
                 <li>Memory usage is optimized for large files</li>
             </ul>
             
-            <h2>Windows-Specific Notes</h2>
+            <h2>Platform-Specific Notes</h2>
+            <h3>Windows</h3>
             <ul>
                 <li>Configuration files are stored in <code>%APPDATA%\\LogViewer\\</code></li>
                 <li>Use Windows-style paths (e.g., <code>C:\\path\\to\\file.log</code>)</li>
+                <li>The application supports high DPI displays</li>
+            </ul>
+            
+            <h3>macOS</h3>
+            <ul>
+                <li>Configuration files are stored in <code>~/Library/Application Support/LogViewer/</code></li>
+                <li>Use Unix-style paths (e.g., <code>/path/to/file.log</code>)</li>
+                <li>The application supports Retina displays</li>
+                <li>Use Cmd+O to open files and Cmd+Q to quit</li>
+            </ul>
+            
+            <h3>Linux</h3>
+            <ul>
+                <li>Configuration files are stored in the current directory</li>
+                <li>Use Unix-style paths (e.g., <code>/path/to/file.log</code>)</li>
                 <li>The application supports high DPI displays</li>
             </ul>
             
@@ -405,7 +431,7 @@ class AboutDialog(QDialog):
         company_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(company_label)
         
-        version_label = QLabel("Version 2.0.0")
+        version_label = QLabel("Version 3.0.0")
         version_label.setStyleSheet("""
             QLabel {
                 color: #ffffff;
@@ -1658,14 +1684,19 @@ class LogViewer(QMainWindow):
 
 def main():
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description='Log Viewer - Windows Compatible')
+    parser = argparse.ArgumentParser(description='Log Viewer - Cross-Platform Compatible')
     parser.add_argument('--config', help='Path to custom config.yml file')
     parser.add_argument('file', nargs='?', help='Log file to open (.log, .out, .txt, or any text file)')
     args = parser.parse_args()
     
     app = QApplication(sys.argv)
     
-    # Windows-specific application settings
+    # Set application properties for all platforms
+    app.setOrganizationName("Michette Technologies")
+    app.setApplicationName("Log Viewer")
+    app.setApplicationVersion("3.0.0")
+    
+    # Platform-specific application settings
     if platform.system() == 'Windows':
         # Enable high DPI support for Windows (with error handling for different PyQt6 versions)
         try:
@@ -1680,11 +1711,20 @@ def main():
             except AttributeError:
                 # If high DPI attributes don't exist, continue without them
                 print("Note: High DPI scaling attributes not available in this PyQt6 version")
+    elif platform.system() == 'Darwin':  # macOS
+        # Enable high DPI support for macOS
+        try:
+            app.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
+            app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
+        except AttributeError:
+            try:
+                app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+                app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+            except AttributeError:
+                print("Note: High DPI scaling attributes not available in this PyQt6 version")
         
-        # Set application properties for Windows
-        app.setOrganizationName("Michette Technologies")
-        app.setApplicationName("Log Viewer")
-        app.setApplicationVersion("2.0.0")
+        # Set macOS-specific application properties
+        app.setApplicationDisplayName("Log Viewer")
     
     # Apply performance optimization settings
     app.setStyle('Fusion')  # Use Fusion style for better performance

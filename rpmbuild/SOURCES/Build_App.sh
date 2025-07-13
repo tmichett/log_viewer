@@ -2,6 +2,14 @@
 ## Script to Build Executable Python App
 ## Author: tmichett@redhat.com
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "Script directory: $SCRIPT_DIR"
+
+# Change to the SOURCES directory where the files are located
+cd "$SCRIPT_DIR"
+echo "Working directory: $(pwd)"
+
 # Install uv for better Python dependency management
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
@@ -13,20 +21,27 @@ uv venv log_viewer_venv
 source log_viewer_venv/bin/activate
 
 # Install all required dependencies from requirements.txt
+echo "Installing dependencies from requirements.txt..."
 uv pip install -r requirements.txt
 
 # Install PyInstaller
+echo "Installing PyInstaller..."
 uv pip install PyInstaller
 
 # Build the executable
-pyinstaller ./log_viewer.spec
+echo "Building executable with PyInstaller..."
+pyinstaller --noconfirm ./log_viewer.spec
 
 # Copy the built executable to current directory (we're already in SOURCES)
-cp ./dist/log_viewer ./
-
-echo "Build completed successfully!"
-echo "Executable location: $(pwd)/log_viewer"
-echo "Executable size: $(du -h log_viewer | cut -f1)" 
+if [ -f "./dist/log_viewer" ]; then
+    cp ./dist/log_viewer ./
+    echo "Build completed successfully!"
+    echo "Executable location: $(pwd)/log_viewer"
+    echo "Executable size: $(du -h log_viewer | cut -f1)"
+else
+    echo "Error: Build failed - executable not found in dist/"
+    exit 1
+fi 
 
 
 

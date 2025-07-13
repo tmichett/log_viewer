@@ -34,6 +34,31 @@ A powerful log file viewer with ANSI color support and configurable highlighting
    python log_viewer.py
    ```
 
+### Option 3: Build from Source
+
+1. **Install Inno Setup** (for installer creation):
+   - Download from https://jrsoftware.org/isinfo.php
+   - This is optional if you only want the executable
+
+2. **Build everything**:
+   ```cmd
+   cd rpmbuild/SOURCES
+   Build_All_Windows.bat
+   ```
+
+3. **Build only the executable**:
+   ```cmd
+   cd rpmbuild/SOURCES
+   Build_App_Windows.bat
+   ```
+
+4. **Manual build with PyInstaller**:
+   ```cmd
+   cd rpmbuild/SOURCES
+   pip install PyInstaller
+   pyinstaller --noconfirm log_viewer_windows.spec
+   ```
+
 ## Windows-Specific Features
 
 ### Configuration Storage
@@ -48,6 +73,17 @@ A powerful log file viewer with ANSI color support and configurable highlighting
 
 ### High DPI Support
 - Automatically scales for high DPI displays
+
+### File Associations
+- The installer can associate .log, .out, and .txt files with Log Viewer
+- Right-click any log file and select "Open with Log Viewer"
+
+### Installer Features
+- **Easy Installation**: Double-click the installer to install Log Viewer
+- **Automatic Updates**: Installer handles upgrading existing installations
+- **Desktop Shortcut**: Optional desktop shortcut creation
+- **Start Menu Integration**: Adds Log Viewer to the Start Menu
+- **Uninstall Support**: Full uninstall capability through Control Panel
 - Works well with Windows display scaling settings
 
 ### File Encoding
@@ -137,6 +173,6 @@ For issues or questions:
 
 ## Version Information
 
-- Version: 2.0.0
+- Version: 3.0.0
 - Compatible with: Windows 10/11, Python 3.8+
 - Last Updated: 2024 
