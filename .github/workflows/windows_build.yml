@@ -63,6 +63,20 @@ jobs:
           # Install PyInstaller
           pip install PyInstaller
           
+          # Convert PNG icon to ICO format (required for Inno Setup)
+          python -c "
+          from PIL import Image
+          import os
+          
+          # Open PNG image
+          img = Image.open('smallicon.png')
+          
+          # Convert to ICO format with multiple sizes
+          img.save('smallicon.ico', format='ICO', sizes=[(16,16), (32,32), (48,48), (64,64), (128,128), (256,256)])
+          
+          print('✓ Icon converted from PNG to ICO format')
+          "
+          
           # Build executable
           pyinstaller --noconfirm log_viewer_windows.spec
           
