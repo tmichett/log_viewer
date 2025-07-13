@@ -30,9 +30,16 @@ jobs:
           
       - name: Install Inno Setup
         run: |
-          # Download and install Inno Setup
-          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
-          Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait
+          # Install Inno Setup using chocolatey (more reliable than direct download)
+          choco install innosetup -y
+          
+          # Verify installation
+          if (Test-Path "C:\Program Files (x86)\Inno Setup 6\iscc.exe") {
+            Write-Host "✓ Inno Setup installed successfully"
+          } else {
+            Write-Error "✗ Inno Setup installation failed"
+            exit 1
+          }
           
       - name: Add Inno Setup to PATH
         run: |
