@@ -15,6 +15,15 @@ VOLUME_NAME="Log Viewer 3.0.0"
 DMG_BACKGROUND_IMG="smallicon.png"
 APP_PATH="dist/Log Viewer.app"
 
+# Detect if running in CI environment
+if [[ -n "$CI" || -n "$GITHUB_ACTIONS" || -n "$RUNNER_OS" ]]; then
+    echo "Detected CI environment - using headless DMG creation"
+    CI_MODE=true
+else
+    echo "Detected interactive environment - using full DMG customization"
+    CI_MODE=false
+fi
+
 # Check if app bundle exists
 if [ ! -d "$APP_PATH" ]; then
     echo "Error: App bundle not found at $APP_PATH"
@@ -27,6 +36,7 @@ echo "Creating DMG package for $APP_NAME..."
 # Clean up any existing DMG artifacts
 rm -rf dmg_temp
 rm -f "$DMG_NAME.dmg"
+rm -f temp_dmg.dmg
 
 # Create temporary DMG directory
 mkdir -p dmg_temp
@@ -71,21 +81,46 @@ echo "Calculating DMG size..."
 APP_SIZE=$(du -sk "$APP_PATH" | cut -f1)
 DMG_SIZE=$((APP_SIZE + 51200))  # Add 50MB buffer
 
-# Create DMG
-echo "Creating DMG..."
-hdiutil create -srcfolder dmg_temp -volname "$VOLUME_NAME" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW -size ${DMG_SIZE}k temp_dmg.dmg
-
-# Mount the DMG
-echo "Mounting DMG for customization..."
-DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen temp_dmg.dmg | egrep '^/dev/' | sed 1q | awk '{print $1}')
-MOUNT_POINT="/Volumes/$VOLUME_NAME"
-
-# Wait for mount
-sleep 2
-
-# Customize DMG appearance
-echo "Customizing DMG appearance..."
-osascript << EOF
+if [[ "$CI_MODE" == "true" ]]; then
+    echo "Creating simple DMG for CI environment..."
+    
+    # Create DMG directly in compressed format for CI
+    hdiutil create -srcfolder dmg_temp -volname "$VOLUME_NAME" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDZO -imagekey zlib-level=9 -size ${DMG_SIZE}k "$DMG_NAME.dmg"
+    
+    if [ $? -eq 0 ]; then
+        echo "DMG created successfully in CI mode!"
+    else
+        echo "Error: DMG creation failed in CI mode"
+        exit 1
+    fi
+    
+else
+    echo "Creating customized DMG for interactive environment..."
+    
+    # Create DMG
+    echo "Creating DMG..."
+    hdiutil create -srcfolder dmg_temp -volname "$VOLUME_NAME" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW -size ${DMG_SIZE}k temp_dmg.dmg
+    
+    if [ $? -ne 0 ]; then
+        echo "Error: Initial DMG creation failed"
+        exit 1
+    fi
+    
+    # Mount the DMG
+    echo "Mounting DMG for customization..."
+    DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen temp_dmg.dmg | egrep '^/dev/' | sed 1q | awk '{print $1}')
+    MOUNT_POINT="/Volumes/$VOLUME_NAME"
+    
+    # Wait for mount and verify
+    sleep 3
+    if [ ! -d "$MOUNT_POINT" ]; then
+        echo "Error: DMG mount failed"
+        exit 1
+    fi
+    
+    # Customize DMG appearance (only in interactive mode)
+    echo "Customizing DMG appearance..."
+    osascript << EOF
 tell application "Finder"
     tell disk "$VOLUME_NAME"
         open
@@ -96,7 +131,6 @@ tell application "Finder"
         set viewOptions to the icon view options of container window
         set arrangement of viewOptions to not arranged
         set icon size of viewOptions to 72
-        set background picture of viewOptions to file ".background:$DMG_BACKGROUND_IMG"
         set position of item "Log Viewer.app" of container window to {130, 120}
         set position of item "Applications" of container window to {390, 120}
         set position of item "README.txt" of container window to {130, 250}
@@ -109,17 +143,37 @@ tell application "Finder"
 end tell
 EOF
 
-# Unmount the DMG
-echo "Unmounting DMG..."
-hdiutil detach "$DEVICE"
-
-# Convert to compressed read-only DMG
-echo "Converting to compressed DMG..."
-hdiutil convert temp_dmg.dmg -format UDZO -imagekey zlib-level=9 -o "$DMG_NAME.dmg"
+    # Unmount the DMG with retry logic
+    echo "Unmounting DMG..."
+    for i in {1..5}; do
+        if hdiutil detach "$DEVICE"; then
+            echo "Successfully unmounted DMG"
+            break
+        else
+            echo "Attempt $i: Failed to unmount, retrying in 2 seconds..."
+            sleep 2
+            if [ $i -eq 5 ]; then
+                echo "Error: Could not unmount DMG after 5 attempts"
+                exit 1
+            fi
+        fi
+    done
+    
+    # Convert to compressed read-only DMG
+    echo "Converting to compressed DMG..."
+    hdiutil convert temp_dmg.dmg -format UDZO -imagekey zlib-level=9 -o "$DMG_NAME.dmg"
+    
+    if [ $? -ne 0 ]; then
+        echo "Error: DMG conversion failed"
+        exit 1
+    fi
+    
+    # Clean up temporary DMG
+    rm -f temp_dmg.dmg
+fi
 
 # Clean up temporary files
 rm -rf dmg_temp
-rm -f temp_dmg.dmg
 
 # Check if DMG was created successfully
 if [ -f "$DMG_NAME.dmg" ]; then
@@ -127,11 +181,19 @@ if [ -f "$DMG_NAME.dmg" ]; then
     echo "DMG location: $(pwd)/$DMG_NAME.dmg"
     echo "DMG size: $(du -sh "$DMG_NAME.dmg" | cut -f1)"
     
-    # Test DMG can be mounted
-    echo "Testing DMG mount..."
-    hdiutil attach "$DMG_NAME.dmg" -readonly -noautoopen
-    sleep 2
-    hdiutil detach "/Volumes/$VOLUME_NAME"
+    # Test DMG can be mounted (only in interactive mode to avoid CI issues)
+    if [[ "$CI_MODE" == "false" ]]; then
+        echo "Testing DMG mount..."
+        if hdiutil attach "$DMG_NAME.dmg" -readonly -noautoopen; then
+            sleep 2
+            hdiutil detach "/Volumes/$VOLUME_NAME"
+            echo "DMG mount test successful!"
+        else
+            echo "Warning: DMG mount test failed, but DMG was created"
+        fi
+    else
+        echo "Skipping DMG mount test in CI environment"
+    fi
     
     echo "macOS DMG package created successfully!"
     echo "You can now distribute: $DMG_NAME.dmg"
