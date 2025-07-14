@@ -43,7 +43,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=None,
+    target_arch='universal2',  # Create universal binary for both Intel and Apple Silicon
     codesign_identity=None,
     entitlements_file=None,
 )

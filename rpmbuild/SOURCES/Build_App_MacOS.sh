@@ -116,6 +116,16 @@ if [ -d "dist/Log Viewer.app" ]; then
     # Make the app executable
     chmod +x "dist/Log Viewer.app/Contents/MacOS/log_viewer"
     
+    # Check architecture of the built binary
+    echo "Checking binary architecture..."
+    if command -v file &> /dev/null; then
+        file "dist/Log Viewer.app/Contents/MacOS/log_viewer"
+    fi
+    if command -v lipo &> /dev/null; then
+        echo "Architecture details:"
+        lipo -info "dist/Log Viewer.app/Contents/MacOS/log_viewer" || echo "Could not get architecture info"
+    fi
+    
     # Test the app can be launched
     echo "Testing app launch..."
     open "dist/Log Viewer.app" --args --help &
