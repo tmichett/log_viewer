@@ -126,6 +126,11 @@ if [ -d "dist/Log Viewer.app" ]; then
         lipo -info "dist/Log Viewer.app/Contents/MacOS/log_viewer" || echo "Could not get architecture info"
     fi
     
+    echo ""
+    echo "NOTE: This app is built for ARM64 (Apple Silicon) architecture."
+    echo "Intel-based Macs will run this app automatically using Rosetta 2 translation."
+    echo "Rosetta 2 is included with macOS Big Sur (11.0) and later."
+    
     # Test the app can be launched
     echo "Testing app launch..."
     open "dist/Log Viewer.app" --args --help &

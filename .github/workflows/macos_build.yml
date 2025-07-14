@@ -41,7 +41,7 @@ jobs:
           ls -la
           echo "Python version: $(python --version)"
           echo "PyInstaller version: $(pip show pyinstaller | grep Version)"
-          echo "Building universal binary for both Intel and Apple Silicon Macs..."
+          echo "Building ARM64 binary (Intel Macs will use Rosetta 2 translation)..."
           bash Build_App_MacOS.sh
           
       - name: Verify App Bundle Creation
