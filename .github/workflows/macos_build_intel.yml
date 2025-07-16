@@ -1,5 +1,5 @@
 # GitHub Workflow for macOS App Bundle and DMG Creation
-name: Build macOS App
+name: Build macOS App - Intel
 
 # Controls when the workflow will run
 on:
