@@ -23,6 +23,10 @@ get_version() {
 VERSION=$(get_version)
 echo "Building Log Viewer version: $VERSION"
 
+# Update RPM spec file with current version
+echo "Updating RPM spec file..."
+./update_rpm_version.sh
+
 # Install uv for better Python dependency management
 curl -LsSf https://astral.sh/uv/install.sh | sh
 

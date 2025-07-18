@@ -5,6 +5,20 @@ import os
 import sys
 import platform
 
+# Read version from Build_Version file
+def get_version():
+    try:
+        with open('Build_Version', 'r') as f:
+            for line in f:
+                if line.startswith('VERSION='):
+                    return line.split('=')[1].strip()
+    except FileNotFoundError:
+        print("Warning: Build_Version file not found, using default version")
+    return "3.0.0"
+
+VERSION = get_version()
+print(f"Building Windows executable version: {VERSION}")
+
 block_cipher = None
 
 a = Analysis(
@@ -17,6 +31,7 @@ a = Analysis(
         ('test.log', '.'),
         ('../../README.md', '.'),
         ('README_Windows.md', '.'),
+        ('Build_Version', '.'),
     ],
     hiddenimports=[],
     hookspath=[],
@@ -38,7 +53,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='LogViewer',
+    name=f'LogViewer-{VERSION}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -57,7 +72,7 @@ exe = EXE(
 )
 
 # Add Windows-specific metadata
-exe.version = '3.0.0'
+exe.version = VERSION
 exe.description = 'Log Viewer - A powerful log file viewer with ANSI color support'
 exe.company = 'Michette Technologies'
 exe.product = 'Log Viewer'

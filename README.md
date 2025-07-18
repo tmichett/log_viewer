@@ -223,6 +223,16 @@ highlight_terms:
 - **Apple Silicon arm64**: `LogViewer-{VERSION}-macOS-arm64.dmg`
 - **Cross-compatibility**: Both versions work on either architecture via Rosetta 2
 
+### Version Management
+All builds use centralized version management from `rpmbuild/SOURCES/Build_Version`:
+```bash
+# Update version for all platforms
+echo "VERSION=3.2.0" > rpmbuild/SOURCES/Build_Version
+```
+- **Automatic Updates**: Build scripts automatically update RPM specs, Windows installers, and macOS bundles
+- **Consistent Naming**: All artifacts use the same version across platforms
+- **Single Source**: No need to update multiple files manually
+
 ### System Requirements
 - **Linux**: Any modern distribution, Python 3.8+
 - **macOS**: macOS 10.14 (Mojave) or later, Intel/Apple Silicon
@@ -233,6 +243,25 @@ highlight_terms:
 - **Python Versions**: 3.8+ supported
 - **File Formats**: Any text-based format (.log, .out, .txt, etc.)
 - **File Encoding**: UTF-8, UTF-16, CP1252, Latin-1 with auto-detection
+
+### Version Management Scripts
+The following utility scripts maintain version consistency across platforms:
+
+#### Version Update Scripts
+```bash
+cd rpmbuild/SOURCES
+
+# Update RPM spec file version
+./update_rpm_version.sh
+
+# Update Windows installer version
+python update_inno_version.py
+
+# Update Windows version info
+python generate_version_info.py
+```
+
+These scripts are automatically called during the build process but can be run manually if needed.
 
 ## Development
 
@@ -255,7 +284,7 @@ log_viewer/
 
 #### Linux
 ```bash
-# Build standalone executable
+# Build standalone executable (includes automatic RPM spec version update)
 cd rpmbuild/SOURCES
 ./Build_App.sh
 
@@ -263,6 +292,8 @@ cd rpmbuild/SOURCES
 cd ../..
 ./RPM_Build.sh
 ```
+
+**Note**: The build process automatically updates the RPM spec file with the current version from `Build_Version`.
 
 #### macOS
 ```bash
@@ -282,22 +313,29 @@ cd rpmbuild/SOURCES
 
 #### Windows
 ```bash
-# Build executable and installer
+# Build executable and installer (includes automatic version updates)
 cd rpmbuild/SOURCES
 Build_All_Windows.bat
 
 # Or build individually:
-Build_App_Windows.bat          # Creates LogViewer.exe
+Build_App_Windows.bat          # Creates LogViewer.exe with dynamic versioning
 # Then use Inno Setup to compile LogViewer_Installer.iss for installer
 
 # Manual build using PyInstaller:
+python update_inno_version.py  # Update installer script version
 pyinstaller --noconfirm log_viewer_windows.spec
 ```
+
+**Note**: The build process automatically:
+- Updates `version_info.txt` with current version
+- Updates Inno Setup installer script with current version
+- Generates versioned installer: `LogViewer-{VERSION}-Setup.exe`
 
 #### Cross-Platform GitHub Actions
 - **Linux RPM**: `.github/workflows/rpm_build.yml`
 - **macOS DMG (Dual Architecture)**: `.github/workflows/macos_build_dual.yml`
 - **Windows EXE/Installer**: `.github/workflows/windows_build.yml`
+- **Unified Release (All Platforms)**: `.github/workflows/unified_release.yml`
 
 ### Contributing
 1. Fork the repository
@@ -354,6 +392,9 @@ For technical support, bug reports, or feature requests, please contact:
 - **NEW**: Architecture-specific DMG naming (LogViewer-{VERSION}-macOS-{ARCH}.dmg)
 - **NEW**: Enhanced GitHub Actions workflow with parallel builds
 - **NEW**: Comprehensive dual architecture build scripts
+- **NEW**: Automatic RPM spec and Windows installer version updates
+- **NEW**: Unified release workflow for all platforms
+- **NEW**: Dynamic versioning across all build processes
 
 ### Version 3.0.0
 - Enhanced search functionality with entire line highlighting

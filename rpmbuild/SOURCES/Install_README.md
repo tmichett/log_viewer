@@ -38,6 +38,19 @@ pyinstaller log_viewer.spec
 
 The executable will be created in the `dist` directory (or `dist_x86_64`/`dist_arm64` for macOS dual builds).
 
+## Version Management
+
+All builds automatically read the version from `Build_Version` file:
+```bash
+# Update version for all platforms
+echo "VERSION=3.2.0" > Build_Version
+```
+
+The build processes automatically update:
+- RPM spec files (`update_rpm_version.sh`)
+- Windows installer scripts (`update_inno_version.py`) 
+- Windows version info (`generate_version_info.py`)
+
 ## Installation
 
 ### macOS/Linux

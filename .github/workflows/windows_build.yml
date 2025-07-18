@@ -45,6 +45,14 @@ jobs:
         run: |
           echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           
+      - name: Read version from Build_Version
+        id: version
+        run: |
+          cd rpmbuild/SOURCES
+          $VERSION = (Get-Content Build_Version | Where-Object { $_ -match "VERSION=" }) -replace "VERSION=", ""
+          echo "VERSION=$VERSION" >> $env:GITHUB_OUTPUT
+          echo "Building Windows version: $VERSION"
+          
       - name: Create Windows Executable
         run: |
           cd rpmbuild/SOURCES
@@ -80,16 +88,19 @@ jobs:
           # Build executable
           pyinstaller --noconfirm log_viewer_windows.spec
           
-          # Copy executable to current directory
-          Copy-Item "dist\LogViewer.exe" -Destination "LogViewer.exe"
+          # Copy executable to current directory with version
+          Copy-Item "dist\LogViewer-${{ steps.version.outputs.VERSION }}.exe" -Destination "LogViewer-${{ steps.version.outputs.VERSION }}.exe"
           
           # Verify executable was created
-          if (Test-Path "LogViewer.exe") {
+          if (Test-Path "LogViewer-${{ steps.version.outputs.VERSION }}.exe") {
             Write-Host "✓ Executable created successfully"
-            $size = (Get-Item "LogViewer.exe").Length
+            $size = (Get-Item "LogViewer-${{ steps.version.outputs.VERSION }}.exe").Length
             Write-Host "Executable size: $size bytes"
           } else {
             Write-Error "✗ Executable creation failed"
+            Write-Host "Expected: LogViewer-${{ steps.version.outputs.VERSION }}.exe"
+            Write-Host "Contents of dist directory:"
+            Get-ChildItem "dist\" | ForEach-Object { Write-Host $_.Name }
             exit 1
           }
           
@@ -106,13 +117,16 @@ jobs:
             exit 1
           }
           
+          # Update Inno Setup script with current version
+          python update_inno_version.py
+          
           # Create installer
           iscc LogViewer_Installer.iss
           
           # Verify installer was created
-          if (Test-Path "installer\LogViewer-3.0.0-Setup.exe") {
+          if (Test-Path "installer\LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe") {
             Write-Host "✓ Installer created successfully"
-            $size = (Get-Item "installer\LogViewer-3.0.0-Setup.exe").Length
+            $size = (Get-Item "installer\LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe").Length
             Write-Host "Installer size: $size bytes"
           } else {
             Write-Error "✗ Installer creation failed"
@@ -139,22 +153,24 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LogViewer-Windows-Executable
-          path: rpmbuild/SOURCES/LogViewer.exe
+          path: rpmbuild/SOURCES/LogViewer-${{ steps.version.outputs.VERSION }}.exe
           
       - name: Upload Installer Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LogViewer-Windows-Installer
-          path: rpmbuild/SOURCES/installer/LogViewer-3.0.0-Setup.exe
+          path: rpmbuild/SOURCES/installer/LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe
           
       - name: Create Release Draft
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
-          tag_name: ${{ github.ref_name }} # Use the tag name that triggered the workflow
-          draft: true # Create the release as a draft
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          name: "Log Viewer v${{ steps.version.outputs.VERSION }}"
           files: |
-            rpmbuild/SOURCES/LogViewer.exe
-            rpmbuild/SOURCES/installer/LogViewer-3.0.0-Setup.exe
+            rpmbuild/SOURCES/LogViewer-${{ steps.version.outputs.VERSION }}.exe
+            rpmbuild/SOURCES/installer/LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
@@ -165,16 +181,16 @@ jobs:
           Write-Host "Windows Build Summary"
           Write-Host "============================================"
           
-          if (Test-Path "LogViewer.exe") {
-            $size = (Get-Item "LogViewer.exe").Length
-            Write-Host "✓ Executable: LogViewer.exe ($size bytes)"
+          if (Test-Path "LogViewer-${{ steps.version.outputs.VERSION }}.exe") {
+            $size = (Get-Item "LogViewer-${{ steps.version.outputs.VERSION }}.exe").Length
+            Write-Host "✓ Executable: LogViewer-${{ steps.version.outputs.VERSION }}.exe ($size bytes)"
           } else {
             Write-Host "✗ Executable: Not found"
           }
           
-          if (Test-Path "installer\LogViewer-3.0.0-Setup.exe") {
-            $size = (Get-Item "installer\LogViewer-3.0.0-Setup.exe").Length
-            Write-Host "✓ Installer: LogViewer-3.0.0-Setup.exe ($size bytes)"
+          if (Test-Path "installer\LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe") {
+            $size = (Get-Item "installer\LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe").Length
+            Write-Host "✓ Installer: LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe ($size bytes)"
           } else {
             Write-Host "✗ Installer: Not found"
           }

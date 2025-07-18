@@ -2,8 +2,13 @@
 REM Script to Build Windows Executable
 REM Author: tmichett@redhat.com
 
+REM Read version from Build_Version file
+for /f "tokens=2 delims==" %%a in ('findstr "VERSION=" Build_Version 2^>nul') do set VERSION=%%a
+if "%VERSION%"=="" set VERSION=3.0.0
+
 echo ============================================
 echo Log Viewer - Windows Build Process
+echo Version: %VERSION%
 echo ============================================
 
 REM Get the directory where this script is located
@@ -32,7 +37,7 @@ REM Clean up any existing build artifacts
 echo Cleaning up previous build artifacts...
 if exist "build" rmdir /s /q "build"
 if exist "dist" rmdir /s /q "dist"
-if exist "LogViewer.exe" del /f /q "LogViewer.exe"
+if exist "LogViewer*.exe" del /f /q "LogViewer*.exe"
 if exist "log_viewer_venv" rmdir /s /q "log_viewer_venv"
 
 REM Create virtual environment
@@ -55,28 +60,35 @@ REM Install PyInstaller
 echo Installing PyInstaller...
 pip install PyInstaller
 
+REM Generate updated version_info.txt
+echo Generating version info for version %VERSION%...
+python generate_version_info.py
+
 REM Build the executable
-echo Building Windows executable...
+echo Building Windows executable with version %VERSION%...
 pyinstaller --noconfirm log_viewer_windows.spec
 
 REM Check if build was successful
-if exist "dist\LogViewer.exe" (
+if exist "dist\LogViewer-%VERSION%.exe" (
     echo Copying executable to current directory...
-    copy "dist\LogViewer.exe" "LogViewer.exe"
+    copy "dist\LogViewer-%VERSION%.exe" "LogViewer-%VERSION%.exe"
     
     echo.
     echo Build completed successfully!
-    echo Executable location: %CD%\LogViewer.exe
+    echo Executable location: %CD%\LogViewer-%VERSION%.exe
     
     REM Get file size
-    for %%A in ("LogViewer.exe") do (
+    for %%A in ("LogViewer-%VERSION%.exe") do (
         echo Executable size: %%~zA bytes
     )
     
     echo.
-    echo You can now run LogViewer.exe
+    echo You can now run LogViewer-%VERSION%.exe
 ) else (
     echo Error: Build failed - executable not found in dist/
+    echo Expected: dist\LogViewer-%VERSION%.exe
+    echo Contents of dist directory:
+    dir dist\ /b
     pause
     exit /b 1
 )

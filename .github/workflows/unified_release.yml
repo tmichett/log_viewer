@@ -1,0 +1,189 @@
+# Unified Release Workflow
+# Collects artifacts from all platform builds and creates a comprehensive release
+name: Create Unified Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g., v3.1.0)'
+        required: true
+        type: string
+
+jobs:
+  trigger-builds:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Read version from Build_Version
+        id: version
+        run: |
+          cd rpmbuild/SOURCES
+          VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+          
+      - name: Trigger macOS Dual Build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: workflow } = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'macos_build_dual.yml',
+              ref: context.ref
+            });
+            
+      - name: Trigger Windows Build
+        uses: actions/github-script@v7  
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'windows_build.yml',
+              ref: context.ref
+            });
+            
+      - name: Trigger RPM Build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'rpm_build.yml',
+              ref: context.ref
+            });
+
+  wait-for-builds:
+    needs: trigger-builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for builds to complete
+        run: |
+          echo "Waiting for all platform builds to complete..."
+          sleep 300  # Wait 5 minutes for builds to complete
+          
+  create-unified-release:
+    needs: [trigger-builds, wait-for-builds]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Download macOS ARM64 artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: LogViewer-macOS-DMG-arm64
+          path: ./artifacts/macos/
+          
+      - name: Download macOS x86_64 artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: LogViewer-macOS-DMG-x86_64  
+          path: ./artifacts/macos/
+          
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: LogViewer-Windows-Installer
+          path: ./artifacts/windows/
+          
+      - name: Download Windows executable
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: LogViewer-Windows-Executable
+          path: ./artifacts/windows/
+          
+      - name: Download RPM artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: LogViewer-RPM
+          path: ./artifacts/linux/
+          
+      - name: List all artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find ./artifacts -type f -ls
+          
+      - name: Create Comprehensive Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.event.release.tag_name }}
+          name: "Log Viewer v${{ needs.trigger-builds.outputs.version }}"
+          draft: false
+          body: |
+            # Log Viewer v${{ needs.trigger-builds.outputs.version }}
+            
+            A powerful log file viewer with ANSI color support and configurable highlighting features.
+            
+            ## 📦 Downloads by Platform
+            
+            ### 🍎 macOS (Choose your architecture)
+            - **Apple Silicon (M1/M2/M3)**: `LogViewer-${{ needs.trigger-builds.outputs.version }}-macOS-arm64.dmg`
+            - **Intel Macs**: `LogViewer-${{ needs.trigger-builds.outputs.version }}-macOS-x86_64.dmg`
+            
+            Both versions are compatible with either architecture via Rosetta 2, but native versions offer better performance.
+            
+            ### 🪟 Windows  
+            - **Installer**: `LogViewer-${{ needs.trigger-builds.outputs.version }}-Setup.exe` (Recommended)
+            - **Portable**: `LogViewer.exe` (No installation required)
+            
+            ### 🐧 Linux (Red Hat/Fedora)
+            - **RPM Package**: `LogViewer-${{ needs.trigger-builds.outputs.version }}-0.rpm`
+            
+            ## 🚀 Installation
+            
+            ### macOS
+            1. Download the appropriate DMG for your Mac
+            2. Double-click to mount the DMG
+            3. Drag "Log Viewer.app" to Applications folder
+            
+            ### Windows
+            1. Download and run the installer, or
+            2. Download the portable exe and run directly
+            
+            ### Linux
+            ```bash
+            sudo rpm -ivh LogViewer-${{ needs.trigger-builds.outputs.version }}-0.rpm
+            ```
+            
+            ## ✨ Features
+            - Fast search with highlighting
+            - ANSI color code support
+            - Configurable term highlighting
+            - Dark theme interface
+            - Handles large files efficiently
+            - Cross-platform compatibility
+            
+            ## 📋 System Requirements
+            - **macOS**: 10.14 (Mojave) or later
+            - **Windows**: Windows 10 or later
+            - **Linux**: Red Hat/Fedora-based distributions
+            
+            ## 🔧 Technical Details
+            - Built with Python 3.11+ and PyQt6
+            - Architecture-specific optimizations for macOS
+            - Centralized version management
+            - Enhanced GitHub Actions CI/CD
+            
+            ---
+            
+            **Support**: tmichett@redhat.com  
+            **Organization**: Michette Technologies
+          files: |
+            ./artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

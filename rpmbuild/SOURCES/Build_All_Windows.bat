@@ -61,16 +61,16 @@ REM Step 2: Test the executable (if not skipped)
 if "%SKIP_TESTS%"=="false" (
     echo.
     echo Step 2: Testing executable...
-    if exist "LogViewer.exe" (
+    if exist "LogViewer-%VERSION%.exe" (
         echo     Testing executable launch...
-        start /wait /b LogViewer.exe --help
+        start /wait /b LogViewer-%VERSION%.exe --help
         if %errorlevel% neq 0 (
             echo     Warning: Executable test failed
         ) else (
             echo     ✓ Executable test passed
         )
     ) else (
-        echo     Error: LogViewer.exe not found
+        echo     Error: LogViewer-%VERSION%.exe not found
         pause
         exit /b 1
     )
@@ -117,9 +117,9 @@ echo.
 echo ============================================
 echo Build Summary
 echo ============================================
-if exist "LogViewer.exe" (
-    echo ✓ Executable: LogViewer.exe
-    for %%A in ("LogViewer.exe") do (
+if exist "LogViewer-%VERSION%.exe" (
+    echo ✓ Executable: LogViewer-%VERSION%.exe
+    for %%A in ("LogViewer-%VERSION%.exe") do (
         echo   Size: %%~zA bytes
     )
 ) else (
@@ -139,8 +139,8 @@ echo.
 echo Build process completed successfully!
 echo.
 echo You can now:
-echo 1. Run LogViewer.exe directly
-echo 2. Install using installer\LogViewer-3.0.0-Setup.exe
+echo 1. Run LogViewer-%VERSION%.exe directly
+echo 2. Install using installer\LogViewer-%VERSION%-Setup.exe
 echo 3. Distribute the installer to other Windows computers
 echo.
 pause 

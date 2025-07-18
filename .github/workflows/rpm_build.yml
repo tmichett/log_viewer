@@ -26,17 +26,34 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Read version from Build_Version
+        id: version
+        run: |
+          cd rpmbuild/SOURCES
+          VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building RPM version: $VERSION"
+
       - name: Create Python Compiled application
         run: bash rpmbuild/SOURCES/Build_App.sh 
 
       - name: Create and Build RPM
         run: bash ./RPM_Build_Clean.sh && ./RPM_Build.sh
 
+      - name: Upload RPM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LogViewer-RPM
+          path: /home/runner/rpmbuild/RPMS/x86_64/*.rpm
+          retention-days: 30
+
       - name: Create Release Draft
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
-          tag_name: ${{ github.ref_name }} # Use the tag name that triggered the workflow
-          draft: true # Create the release as a draft
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          name: "Log Viewer v${{ steps.version.outputs.VERSION }}"
           files: |
             /home/runner/rpmbuild/RPMS/x86_64/*.rpm
         env:
