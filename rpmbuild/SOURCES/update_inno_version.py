@@ -19,7 +19,7 @@ def read_version_from_file():
     return "3.0.0"
 
 def update_inno_script(version):
-    """Update the Inno Setup script with the new version"""
+    """Update the Inno Setup script with the new version and executable name"""
     script_path = 'LogViewer_Installer.iss'
     
     if not os.path.exists(script_path):
@@ -31,18 +31,21 @@ def update_inno_script(version):
         content = f.read()
     
     # Replace the version line
-    old_line = '#define MyAppVersion "3.0.0"'
-    new_line = f'#define MyAppVersion "{version}"'
-    
-    # Also handle any existing version
     import re
-    content = re.sub(r'#define MyAppVersion ".*"', new_line, content)
+    content = re.sub(r'#define MyAppVersion ".*"', f'#define MyAppVersion "{version}"', content)
+    
+    # Replace the executable name to include version
+    versioned_exe_name = f'LogViewer-{version}.exe'
+    content = re.sub(r'#define MyAppExeName ".*"', f'#define MyAppExeName "{versioned_exe_name}"', content)
+    
+    # Replace the source file reference in [Files] section
+    content = re.sub(r'Source: "LogViewer\.exe"', f'Source: "{versioned_exe_name}"', content)
     
     # Write back the updated script
     with open(script_path, 'w') as f:
         f.write(content)
     
-    print(f"Updated {script_path} with version {version}")
+    print(f"Updated {script_path} with version {version} and executable name {versioned_exe_name}")
     return True
 
 def main():
