@@ -53,7 +53,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='LogViewer',
+    name=f'LogViewer-{VERSION}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

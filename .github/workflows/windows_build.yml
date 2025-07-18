@@ -88,16 +88,19 @@ jobs:
           # Build executable
           pyinstaller --noconfirm log_viewer_windows.spec
           
-          # Copy executable to current directory
-          Copy-Item "dist\LogViewer.exe" -Destination "LogViewer.exe"
+          # Copy executable to current directory with version
+          Copy-Item "dist\LogViewer-${{ steps.version.outputs.VERSION }}.exe" -Destination "LogViewer-${{ steps.version.outputs.VERSION }}.exe"
           
           # Verify executable was created
-          if (Test-Path "LogViewer.exe") {
+          if (Test-Path "LogViewer-${{ steps.version.outputs.VERSION }}.exe") {
             Write-Host "✓ Executable created successfully"
-            $size = (Get-Item "LogViewer.exe").Length
+            $size = (Get-Item "LogViewer-${{ steps.version.outputs.VERSION }}.exe").Length
             Write-Host "Executable size: $size bytes"
           } else {
             Write-Error "✗ Executable creation failed"
+            Write-Host "Expected: LogViewer-${{ steps.version.outputs.VERSION }}.exe"
+            Write-Host "Contents of dist directory:"
+            Get-ChildItem "dist\" | ForEach-Object { Write-Host $_.Name }
             exit 1
           }
           
@@ -150,7 +153,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LogViewer-Windows-Executable
-          path: rpmbuild/SOURCES/LogViewer.exe
+          path: rpmbuild/SOURCES/LogViewer-${{ steps.version.outputs.VERSION }}.exe
           
       - name: Upload Installer Artifact
         uses: actions/upload-artifact@v4
@@ -166,7 +169,7 @@ jobs:
           draft: true
           name: "Log Viewer v${{ steps.version.outputs.VERSION }}"
           files: |
-            rpmbuild/SOURCES/LogViewer.exe
+            rpmbuild/SOURCES/LogViewer-${{ steps.version.outputs.VERSION }}.exe
             rpmbuild/SOURCES/installer/LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -178,9 +181,9 @@ jobs:
           Write-Host "Windows Build Summary"
           Write-Host "============================================"
           
-          if (Test-Path "LogViewer.exe") {
-            $size = (Get-Item "LogViewer.exe").Length
-            Write-Host "✓ Executable: LogViewer.exe ($size bytes)"
+          if (Test-Path "LogViewer-${{ steps.version.outputs.VERSION }}.exe") {
+            $size = (Get-Item "LogViewer-${{ steps.version.outputs.VERSION }}.exe").Length
+            Write-Host "✓ Executable: LogViewer-${{ steps.version.outputs.VERSION }}.exe ($size bytes)"
           } else {
             Write-Host "✗ Executable: Not found"
           }
