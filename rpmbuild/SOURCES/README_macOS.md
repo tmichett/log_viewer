@@ -253,6 +253,8 @@ For technical support, bug reports, or feature requests:
 - **NEW**: Architecture-specific DMG files with -x86_64 and -arm64 suffixes
 - **NEW**: Native performance optimization for each architecture
 - **NEW**: Comprehensive build scripts for dual architecture development
+- **NEW**: Centralized version management from Build_Version file
+- **NEW**: Automatic version updates across all build processes
 
 ### Version 3.0.0
 - Added macOS app bundle support

@@ -2,7 +2,7 @@
 ; Author: tmichett@redhat.com
 
 #define MyAppName "Log Viewer"
-#define MyAppVersion "3.0.0"
+#define MyAppVersion "3.1.0"
 #define MyAppPublisher "Michette Technologies"
 #define MyAppURL "https://github.com/tmichett/log_viewer"
 #define MyAppExeName "LogViewer.exe"

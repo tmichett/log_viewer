@@ -2,8 +2,13 @@
 REM Script to Build Windows Executable
 REM Author: tmichett@redhat.com
 
+REM Read version from Build_Version file
+for /f "tokens=2 delims==" %%a in ('findstr "VERSION=" Build_Version 2^>nul') do set VERSION=%%a
+if "%VERSION%"=="" set VERSION=3.0.0
+
 echo ============================================
 echo Log Viewer - Windows Build Process
+echo Version: %VERSION%
 echo ============================================
 
 REM Get the directory where this script is located
@@ -55,8 +60,12 @@ REM Install PyInstaller
 echo Installing PyInstaller...
 pip install PyInstaller
 
+REM Generate updated version_info.txt
+echo Generating version info for version %VERSION%...
+python generate_version_info.py
+
 REM Build the executable
-echo Building Windows executable...
+echo Building Windows executable with version %VERSION%...
 pyinstaller --noconfirm log_viewer_windows.spec
 
 REM Check if build was successful
