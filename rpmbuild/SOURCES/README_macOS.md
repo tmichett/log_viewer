@@ -13,11 +13,15 @@ A powerful log file viewer with ANSI color support and configurable highlighting
 
 ### Option 1: DMG Installation (Recommended)
 
-1. Download the `LogViewer-3.0.0-macOS.dmg` file
+1. Download the appropriate DMG file for your Mac:
+   - **Intel Macs**: `LogViewer-3.1.0-macOS-x86_64.dmg`
+   - **Apple Silicon (M1/M2/M3)**: `LogViewer-3.1.0-macOS-arm64.dmg`
 2. Double-click the DMG file to mount it
 3. Drag "Log Viewer.app" to the Applications folder
 4. Launch from Applications or Launchpad
 5. On first launch, you may need to right-click and select "Open" to bypass Gatekeeper
+
+**Note**: Both versions work on either architecture via Rosetta 2, but choose the native version for best performance.
 
 ### Option 2: Build from Source
 
@@ -46,15 +50,33 @@ A powerful log file viewer with ANSI color support and configurable highlighting
 
 2. **Build the app bundle**:
    ```bash
+   # Build both architectures (recommended)
+   ./Build_All_MacOS_Dual.sh
+   
+   # Or build specific architecture:
+   ./Build_All_MacOS_Dual.sh --x86_64-only    # Intel only
+   ./Build_All_MacOS_Dual.sh --arm64-only     # Apple Silicon only
+   
+   # Legacy single architecture build:
    ./Build_App_MacOS.sh
    ```
 
 3. **Create DMG package**:
    ```bash
-   ./Create_DMG_MacOS.sh
+   # DMG creation is included in Build_All_MacOS_Dual.sh
+   # Or create manually:
+   ./Create_DMG_MacOS.sh          # Current architecture
+   ./Create_DMG_MacOS_x86_64.sh   # Intel specific
+   ./Create_DMG_MacOS_arm64.sh    # Apple Silicon specific
    ```
 
 ## macOS-Specific Features
+
+### Dual Architecture Support
+- **Intel x86_64**: Native performance on Intel-based Macs
+- **Apple Silicon arm64**: Native performance on M1/M2/M3 Macs
+- **Rosetta 2 Compatibility**: Either version runs on both architectures
+- **Optimized Binaries**: Each architecture gets specifically compiled binaries
 
 ### Configuration Storage
 - Configuration files are stored in `~/Library/Application Support/LogViewer/`
@@ -182,11 +204,16 @@ alias lv='open -a "Log Viewer"'
 # Install dependencies
 pip3 install -r requirements.txt
 
-# Build app bundle
-./Build_App_MacOS.sh
+# Build both architectures (recommended)
+./Build_All_MacOS_Dual.sh
 
-# Create DMG
-./Create_DMG_MacOS.sh
+# Or build specific architecture
+./Build_All_MacOS_Dual.sh --x86_64-only    # Intel only
+./Build_All_MacOS_Dual.sh --arm64-only     # Apple Silicon only
+
+# Legacy single architecture build
+./Build_App_MacOS.sh    # Build app bundle
+./Create_DMG_MacOS.sh   # Create DMG
 ```
 
 ### Code Signing (Optional)
@@ -221,7 +248,13 @@ For technical support, bug reports, or feature requests:
 
 ## Version History
 
-### Version 3.0.0 (Current)
+### Version 3.1.0 (Current)
+- **NEW**: Dual architecture support (Intel x86_64 + Apple Silicon arm64)
+- **NEW**: Architecture-specific DMG files with -x86_64 and -arm64 suffixes
+- **NEW**: Native performance optimization for each architecture
+- **NEW**: Comprehensive build scripts for dual architecture development
+
+### Version 3.0.0
 - Added macOS app bundle support
 - Enhanced search with line highlighting
 - Improved cross-platform compatibility

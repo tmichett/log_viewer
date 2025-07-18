@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller spec file for macOS app bundle creation
+# PyInstaller spec file for macOS app bundle creation - Apple Silicon arm64
 
 import os
 import sys
@@ -59,7 +59,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=None,  # Build for current architecture (ARM64), Intel Macs will use Rosetta 2
+    target_arch='arm64',  # Explicitly target Apple Silicon arm64
     codesign_identity=None,
     entitlements_file=None,
 )

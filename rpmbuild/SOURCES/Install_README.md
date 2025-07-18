@@ -17,11 +17,26 @@ pip3 install PyInstaller PyQt6 PyYAML
 ```
 
 2. Build the application:
+
+### macOS (Dual Architecture)
+```bash
+# Build both Intel x86_64 and Apple Silicon arm64
+./Build_All_MacOS_Dual.sh
+
+# Or build specific architecture:
+./Build_All_MacOS_Dual.sh --x86_64-only    # Intel only
+./Build_All_MacOS_Dual.sh --arm64-only     # Apple Silicon only
+
+# Legacy single architecture build:
+pyinstaller log_viewer_macos.spec
+```
+
+### Linux/Windows
 ```bash
 pyinstaller log_viewer.spec
 ```
 
-The executable will be created in the `dist` directory.
+The executable will be created in the `dist` directory (or `dist_x86_64`/`dist_arm64` for macOS dual builds).
 
 ## Installation
 
