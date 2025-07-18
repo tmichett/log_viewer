@@ -1,5 +1,5 @@
 #!/bin/bash
-## Script to Build macOS App Bundle
+## Script to Build macOS App Bundle for Apple Silicon arm64
 ## Author: tmichett@redhat.com
 
 # Check if we're running on macOS
@@ -19,7 +19,11 @@ get_version() {
 }
 
 VERSION=$(get_version)
-echo "Building Log Viewer for macOS - Version: $VERSION"
+echo "Building Log Viewer for macOS Apple Silicon arm64 - Version: $VERSION"
+
+# Set architecture
+ARCH="arm64"
+echo "Target architecture: $ARCH"
 
 # Debug information
 echo "Current directory: $(pwd)"
@@ -33,13 +37,18 @@ if [ ! -f "log_viewer.py" ]; then
     exit 1
 fi
 
-if [ ! -f "log_viewer_macos.spec" ]; then
-    echo "Error: log_viewer_macos.spec not found!"
+if [ ! -f "log_viewer_macos_arm64.spec" ]; then
+    echo "Error: log_viewer_macos_arm64.spec not found!"
     exit 1
 fi
 
 if [ ! -f "requirements.txt" ]; then
     echo "Error: requirements.txt not found!"
+    exit 1
+fi
+
+if [ ! -f "Build_Version" ]; then
+    echo "Error: Build_Version file not found!"
     exit 1
 fi
 
@@ -60,13 +69,13 @@ if [[ "$USE_UV" == "true" ]] && ! command -v uv &> /dev/null; then
 fi
 
 # Clean up any existing virtual environment
-rm -rf log_viewer_venv
+rm -rf log_viewer_venv_arm64
 
 if [[ "$USE_UV" == "true" ]] && command -v uv &> /dev/null; then
     echo "Using uv for dependency management..."
     # Create and activate virtual environment
-    uv venv log_viewer_venv
-    source log_viewer_venv/bin/activate
+    uv venv log_viewer_venv_arm64
+    source log_viewer_venv_arm64/bin/activate
     
     # Install all required dependencies from requirements.txt
     echo "Installing dependencies..."
@@ -78,8 +87,8 @@ if [[ "$USE_UV" == "true" ]] && command -v uv &> /dev/null; then
 else
     echo "Using standard pip for dependency management..."
     # Create and activate virtual environment
-    python -m venv log_viewer_venv
-    source log_viewer_venv/bin/activate
+    python -m venv log_viewer_venv_arm64
+    source log_viewer_venv_arm64/bin/activate
     
     # Upgrade pip
     pip install --upgrade pip
@@ -101,55 +110,54 @@ fi
 
 echo "PyInstaller version: $(pip show pyinstaller | grep Version)"
 
-# Clean up any existing build artifacts
-rm -rf build dist
+# Clean up any existing build artifacts for this architecture
+rm -rf build_arm64 dist_arm64
 
 # Build the macOS app bundle
-echo "Building macOS app bundle..."
-pyinstaller --noconfirm log_viewer_macos.spec
+echo "Building macOS app bundle for $ARCH..."
+pyinstaller --noconfirm --distpath dist_arm64 --workpath build_arm64 log_viewer_macos_arm64.spec
 
 # Check PyInstaller exit code
 if [ $? -ne 0 ]; then
     echo "Error: PyInstaller build failed"
     echo "Build directory contents:"
-    ls -la build/ || echo "build directory does not exist"
+    ls -la build_arm64/ || echo "build_arm64 directory does not exist"
     echo "Dist directory contents:"
-    ls -la dist/ || echo "dist directory does not exist"
+    ls -la dist_arm64/ || echo "dist_arm64 directory does not exist"
     exit 1
 fi
 
 # Check if build was successful
-if [ -d "dist/Log Viewer.app" ]; then
+if [ -d "dist_arm64/Log Viewer.app" ]; then
     echo "Build completed successfully!"
-    echo "App bundle location: $(pwd)/dist/Log Viewer.app"
-    echo "App bundle size: $(du -sh "dist/Log Viewer.app" | cut -f1)"
+    echo "App bundle location: $(pwd)/dist_arm64/Log Viewer.app"
+    echo "App bundle size: $(du -sh "dist_arm64/Log Viewer.app" | cut -f1)"
     
     # Make the app executable
-    chmod +x "dist/Log Viewer.app/Contents/MacOS/log_viewer"
+    chmod +x "dist_arm64/Log Viewer.app/Contents/MacOS/log_viewer"
     
     # Check architecture of the built binary
     echo "Checking binary architecture..."
     if command -v file &> /dev/null; then
-        file "dist/Log Viewer.app/Contents/MacOS/log_viewer"
+        file "dist_arm64/Log Viewer.app/Contents/MacOS/log_viewer"
     fi
     if command -v lipo &> /dev/null; then
         echo "Architecture details:"
-        lipo -info "dist/Log Viewer.app/Contents/MacOS/log_viewer" || echo "Could not get architecture info"
+        lipo -info "dist_arm64/Log Viewer.app/Contents/MacOS/log_viewer" || echo "Could not get architecture info"
     fi
     
     echo ""
-    echo "NOTE: This app is built for ARM64 (Apple Silicon) architecture."
+    echo "NOTE: This app is built for Apple Silicon arm64 architecture."
     echo "Intel-based Macs will run this app automatically using Rosetta 2 translation."
-    echo "Rosetta 2 is included with macOS Big Sur (11.0) and later."
     
     # Test the app can be launched
     echo "Testing app launch..."
-    open "dist/Log Viewer.app" --args --help &
+    open "dist_arm64/Log Viewer.app" --args --help &
     sleep 2
-    pkill -f "log_viewer"
+    pkill -f "log_viewer" || true
     
-    echo "macOS app bundle created successfully!"
-    echo "You can now run: open 'dist/Log Viewer.app'"
+    echo "macOS arm64 app bundle created successfully!"
+    echo "You can now run: open 'dist_arm64/Log Viewer.app'"
 else
     echo "Error: Build failed - app bundle not found"
     exit 1

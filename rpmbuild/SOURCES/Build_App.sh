@@ -10,6 +10,19 @@ echo "Script directory: $SCRIPT_DIR"
 cd "$SCRIPT_DIR"
 echo "Working directory: $(pwd)"
 
+# Read version from Build_Version file
+get_version() {
+    if [ -f "Build_Version" ]; then
+        VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+        echo "$VERSION"
+    else
+        echo "3.0.0"
+    fi
+}
+
+VERSION=$(get_version)
+echo "Building Log Viewer version: $VERSION"
+
 # Install uv for better Python dependency management
 curl -LsSf https://astral.sh/uv/install.sh | sh
 

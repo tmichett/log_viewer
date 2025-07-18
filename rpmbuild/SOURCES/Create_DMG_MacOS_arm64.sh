@@ -1,5 +1,5 @@
 #!/bin/bash
-## Script to Create macOS DMG Package
+## Script to Create macOS DMG Package for Apple Silicon arm64
 ## Author: tmichett@redhat.com
 
 # Check if we're running on macOS
@@ -19,14 +19,15 @@ get_version() {
 }
 
 VERSION=$(get_version)
-echo "Creating DMG for Log Viewer version $VERSION"
+echo "Creating DMG for Log Viewer version $VERSION (Apple Silicon arm64)"
 
 # Configuration
 APP_NAME="Log Viewer"
-DMG_NAME="LogViewer-${VERSION}-macOS"
+ARCH="arm64"
+DMG_NAME="LogViewer-${VERSION}-macOS-${ARCH}"
 VOLUME_NAME="Log Viewer ${VERSION}"
 DMG_BACKGROUND_IMG="smallicon.png"
-APP_PATH="dist/Log Viewer.app"
+APP_PATH="dist_arm64/Log Viewer.app"
 
 # Detect if running in CI environment
 if [[ -n "$CI" || -n "$GITHUB_ACTIONS" || -n "$RUNNER_OS" ]]; then
@@ -40,41 +41,46 @@ fi
 # Check if app bundle exists
 if [ ! -d "$APP_PATH" ]; then
     echo "Error: App bundle not found at $APP_PATH"
-    echo "Please run ./Build_App_MacOS.sh first"
+    echo "Please run ./Build_App_MacOS_arm64.sh first"
     exit 1
 fi
 
-echo "Creating DMG package for $APP_NAME..."
+echo "Creating DMG package for $APP_NAME ($ARCH)..."
 
 # Clean up any existing DMG artifacts
-rm -rf dmg_temp
+rm -rf dmg_temp_arm64
 rm -f "$DMG_NAME.dmg"
-rm -f temp_dmg.dmg
+rm -f temp_dmg_arm64.dmg
 
 # Create temporary DMG directory
-mkdir -p dmg_temp
+mkdir -p dmg_temp_arm64
 
 # Copy app bundle to DMG temp directory
 echo "Copying app bundle..."
-cp -R "$APP_PATH" dmg_temp/
+cp -R "$APP_PATH" dmg_temp_arm64/
 
 # Create Applications symlink for easy installation
 echo "Creating Applications symlink..."
-ln -s /Applications dmg_temp/Applications
+ln -s /Applications dmg_temp_arm64/Applications
 
 # Copy additional files
 echo "Copying additional files..."
-cp ../../README.md dmg_temp/README.txt
-cp config.yml dmg_temp/
-cp test.log dmg_temp/
+cp ../../README.md dmg_temp_arm64/README.txt
+cp config.yml dmg_temp_arm64/
+cp test.log dmg_temp_arm64/
 
 # Create a proper README for the DMG
-cat > dmg_temp/INSTALL.txt << 'EOF'
-Log Viewer 3.0.0 - macOS Installation
+cat > dmg_temp_arm64/INSTALL.txt << EOF
+Log Viewer ${VERSION} - macOS Installation (Apple Silicon arm64)
 
 INSTALLATION:
 1. Drag "Log Viewer.app" to the Applications folder
 2. Launch from Applications or Launchpad
+
+COMPATIBILITY:
+- This version is optimized for Apple Silicon Macs (arm64)
+- Will run on Intel-based Macs using Rosetta 2 translation
+- Requires macOS 10.14 (Mojave) or later
 
 USAGE:
 - Double-click the app to launch
@@ -98,7 +104,7 @@ if [[ "$CI_MODE" == "true" ]]; then
     echo "Creating simple DMG for CI environment..."
     
     # Create DMG directly in compressed format for CI
-    hdiutil create -srcfolder dmg_temp -volname "$VOLUME_NAME" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDZO -imagekey zlib-level=9 -size ${DMG_SIZE}k "$DMG_NAME.dmg"
+    hdiutil create -srcfolder dmg_temp_arm64 -volname "$VOLUME_NAME" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDZO -imagekey zlib-level=9 -size ${DMG_SIZE}k "$DMG_NAME.dmg"
     
     if [ $? -eq 0 ]; then
         echo "DMG created successfully in CI mode!"
@@ -112,7 +118,7 @@ else
     
     # Create DMG
     echo "Creating DMG..."
-    hdiutil create -srcfolder dmg_temp -volname "$VOLUME_NAME" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW -size ${DMG_SIZE}k temp_dmg.dmg
+    hdiutil create -srcfolder dmg_temp_arm64 -volname "$VOLUME_NAME" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW -size ${DMG_SIZE}k temp_dmg_arm64.dmg
     
     if [ $? -ne 0 ]; then
         echo "Error: Initial DMG creation failed"
@@ -121,7 +127,7 @@ else
     
     # Mount the DMG
     echo "Mounting DMG for customization..."
-    DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen temp_dmg.dmg | egrep '^/dev/' | sed 1q | awk '{print $1}')
+    DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen temp_dmg_arm64.dmg | egrep '^/dev/' | sed 1q | awk '{print $1}')
     MOUNT_POINT="/Volumes/$VOLUME_NAME"
     
     # Wait for mount and verify
@@ -174,7 +180,7 @@ EOF
     
     # Convert to compressed read-only DMG
     echo "Converting to compressed DMG..."
-    hdiutil convert temp_dmg.dmg -format UDZO -imagekey zlib-level=9 -o "$DMG_NAME.dmg"
+    hdiutil convert temp_dmg_arm64.dmg -format UDZO -imagekey zlib-level=9 -o "$DMG_NAME.dmg"
     
     if [ $? -ne 0 ]; then
         echo "Error: DMG conversion failed"
@@ -182,34 +188,34 @@ EOF
     fi
     
     # Clean up temporary DMG
-    rm -f temp_dmg.dmg
+    rm -f temp_dmg_arm64.dmg
 fi
 
 # Clean up temporary files
-rm -rf dmg_temp
+rm -rf dmg_temp_arm64
 
 # Check if DMG was created successfully
 if [ -f "$DMG_NAME.dmg" ]; then
-    echo "DMG created successfully!"
+    echo "DMG package created successfully!"
     echo "DMG location: $(pwd)/$DMG_NAME.dmg"
     echo "DMG size: $(du -sh "$DMG_NAME.dmg" | cut -f1)"
     
-    # Test DMG can be mounted (only in interactive mode to avoid CI issues)
-    if [[ "$CI_MODE" == "false" ]]; then
-        echo "Testing DMG mount..."
-        if hdiutil attach "$DMG_NAME.dmg" -readonly -noautoopen; then
-            sleep 2
-            hdiutil detach "/Volumes/$VOLUME_NAME"
-            echo "DMG mount test successful!"
-        else
-            echo "Warning: DMG mount test failed, but DMG was created"
-        fi
+    # Test DMG can be mounted
+    echo "Testing DMG mount..."
+    if hdiutil attach "$DMG_NAME.dmg" -readonly -noautoopen >/dev/null 2>&1; then
+        echo "✓ DMG mounts successfully"
+        hdiutil detach "/Volumes/$VOLUME_NAME" >/dev/null 2>&1
     else
-        echo "Skipping DMG mount test in CI environment"
+        echo "✗ Warning: DMG mount test failed"
     fi
     
-    echo "macOS DMG package created successfully!"
-    echo "You can now distribute: $DMG_NAME.dmg"
+    echo ""
+    echo "Installation Instructions:"
+    echo "1. Double-click $DMG_NAME.dmg to mount"
+    echo "2. Drag 'Log Viewer.app' to Applications folder"
+    echo "3. Launch from Applications or Launchpad"
+    echo ""
+    echo "DMG package created successfully for Apple Silicon arm64!"
 else
     echo "Error: DMG creation failed"
     exit 1

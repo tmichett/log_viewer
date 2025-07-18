@@ -58,7 +58,7 @@ The application requires the following Python packages:
 ##### Linux (RPM - Recommended for Red Hat/Fedora)
 ```bash
 # Install the RPM package
-sudo rpm -ivh LogViewer-3.0.0-0.rpm
+sudo rpm -ivh LogViewer-3.1.0-0.rpm
 
 # Launch the application
 logviewer
@@ -66,8 +66,12 @@ logviewer
 
 ##### macOS (DMG - Recommended)
 ```bash
-# Download and mount the DMG
-open LogViewer-3.0.0-macOS.dmg
+# Download the appropriate DMG for your Mac:
+# Intel Macs: LogViewer-3.1.0-macOS-x86_64.dmg
+# Apple Silicon (M1/M2/M3): LogViewer-3.1.0-macOS-arm64.dmg
+
+# Mount the DMG
+open LogViewer-3.1.0-macOS-arm64.dmg  # or x86_64 version
 
 # Drag "Log Viewer.app" to Applications folder
 # Launch from Applications or Launchpad
@@ -76,7 +80,7 @@ open LogViewer-3.0.0-macOS.dmg
 ##### Windows (EXE/Installer)
 ```bash
 # Option 1: Download and run the installer
-LogViewer-3.0.0-Setup.exe
+LogViewer-3.1.0-Setup.exe
 
 # Option 2: Run the portable executable directly
 LogViewer.exe
@@ -211,8 +215,13 @@ highlight_terms:
 | Platform | Support | Package Format | Configuration Path |
 |----------|---------|----------------|-------------------|
 | **Linux** | ✅ Full | RPM, Source | `./config.yml` |
-| **macOS** | ✅ Full | DMG (App Bundle) | `~/Library/Application Support/LogViewer/` |
+| **macOS** | ✅ Full | DMG (App Bundle) - Dual Architecture | `~/Library/Application Support/LogViewer/` |
 | **Windows** | ✅ Full | EXE, Source | `%APPDATA%\LogViewer\` |
+
+### macOS Architecture Support
+- **Intel x86_64**: `LogViewer-{VERSION}-macOS-x86_64.dmg`
+- **Apple Silicon arm64**: `LogViewer-{VERSION}-macOS-arm64.dmg`
+- **Cross-compatibility**: Both versions work on either architecture via Rosetta 2
 
 ### System Requirements
 - **Linux**: Any modern distribution, Python 3.8+
@@ -257,11 +266,16 @@ cd ../..
 
 #### macOS
 ```bash
-# Build app bundle and DMG
+# Build both architectures (Intel x86_64 + Apple Silicon arm64)
 cd rpmbuild/SOURCES
-./Build_All_MacOS.sh
+./Build_All_MacOS_Dual.sh
 
-# Or build individually:
+# Or build specific architecture:
+./Build_All_MacOS_Dual.sh --x86_64-only    # Intel only
+./Build_All_MacOS_Dual.sh --arm64-only     # Apple Silicon only
+
+# Legacy single architecture build:
+./Build_All_MacOS.sh      # Uses current system architecture
 ./Build_App_MacOS.sh      # Creates app bundle
 ./Create_DMG_MacOS.sh     # Creates DMG installer
 ```
@@ -282,7 +296,7 @@ pyinstaller --noconfirm log_viewer_windows.spec
 
 #### Cross-Platform GitHub Actions
 - **Linux RPM**: `.github/workflows/rpm_build.yml`
-- **macOS DMG**: `.github/workflows/macos_build.yml`
+- **macOS DMG (Dual Architecture)**: `.github/workflows/macos_build_dual.yml`
 - **Windows EXE/Installer**: `.github/workflows/windows_build.yml`
 
 ### Contributing
@@ -334,7 +348,14 @@ For technical support, bug reports, or feature requests, please contact:
 
 ## Version History
 
-### Version 3.0.0 (Current)
+### Version 3.1.0 (Current)
+- **NEW**: Dual macOS architecture support (Intel x86_64 + Apple Silicon arm64)
+- **NEW**: Centralized version management from Build_Version file
+- **NEW**: Architecture-specific DMG naming (LogViewer-{VERSION}-macOS-{ARCH}.dmg)
+- **NEW**: Enhanced GitHub Actions workflow with parallel builds
+- **NEW**: Comprehensive dual architecture build scripts
+
+### Version 3.0.0
 - Enhanced search functionality with entire line highlighting
 - Added bidirectional search navigation (Find Next/Find Previous)
 - Improved search highlighting with proper cleanup of previous highlights
