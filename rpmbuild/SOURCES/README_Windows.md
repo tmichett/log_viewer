@@ -173,6 +173,6 @@ For issues or questions:
 
 ## Version Information
 
-- Version: 3.1.0
+- Version: 3.2.0
 - Compatible with: Windows 10/11, Python 3.8+
 - Last Updated: 2024 

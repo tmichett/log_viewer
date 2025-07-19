@@ -14,8 +14,8 @@ A powerful log file viewer with ANSI color support and configurable highlighting
 ### Option 1: DMG Installation (Recommended)
 
 1. Download the appropriate DMG file for your Mac:
-   - **Intel Macs**: `LogViewer-3.1.0-macOS-x86_64.dmg`
-   - **Apple Silicon (M1/M2/M3)**: `LogViewer-3.1.0-macOS-arm64.dmg`
+   - **Intel Macs**: `LogViewer-3.2.0-macOS-x86_64.dmg`
+- **Apple Silicon (M1/M2/M3)**: `LogViewer-3.2.0-macOS-arm64.dmg`
 2. Double-click the DMG file to mount it
 3. Drag "Log Viewer.app" to the Applications folder
 4. Launch from Applications or Launchpad
@@ -255,7 +255,7 @@ For technical support, bug reports, or feature requests:
 
 ## Version History
 
-### Version 3.1.0 (Current)
+### Version 3.2.0 (Current)
 - **NEW**: Dual architecture support (Intel x86_64 + Apple Silicon arm64)
 - **NEW**: Architecture-specific DMG files with -x86_64 and -arm64 suffixes
 - **NEW**: Native performance optimization for each architecture

@@ -57,8 +57,8 @@ The application requires the following Python packages:
 
 ##### Linux (RPM - Recommended for Red Hat/Fedora)
 ```bash
-# Install the RPM package
-sudo rpm -ivh LogViewer-3.1.0-0.rpm
+# Install the RPM package (replace VERSION with current version)
+sudo rpm -ivh LogViewer-VERSION-0.rpm
 
 # Launch the application
 logviewer
@@ -67,11 +67,11 @@ logviewer
 ##### macOS (DMG - Recommended)
 ```bash
 # Download the appropriate DMG for your Mac:
-# Intel Macs: LogViewer-3.1.0-macOS-x86_64.dmg
-# Apple Silicon (M1/M2/M3): LogViewer-3.1.0-macOS-arm64.dmg
+# Intel Macs: LogViewer-VERSION-macOS-x86_64.dmg
+# Apple Silicon (M1/M2/M3): LogViewer-VERSION-macOS-arm64.dmg
 
-# Mount the DMG
-open LogViewer-3.1.0-macOS-arm64.dmg  # or x86_64 version
+# Mount the DMG (replace VERSION with current version)
+open LogViewer-VERSION-macOS-arm64.dmg  # or x86_64 version
 
 # Drag "Log Viewer.app" to Applications folder
 # Launch from Applications or Launchpad
@@ -79,11 +79,11 @@ open LogViewer-3.1.0-macOS-arm64.dmg  # or x86_64 version
 
 ##### Windows (EXE/Installer)
 ```bash
-# Option 1: Download and run the installer
-LogViewer-3.1.0-Setup.exe
+# Option 1: Download and run the installer (replace VERSION with current version)
+LogViewer-VERSION-Setup.exe
 
-# Option 2: Run the portable executable directly
-LogViewer.exe
+# Option 2: Run the portable executable directly (replace VERSION with current version)
+LogViewer-VERSION.exe
 ```
 
 #### Method 2: Source Installation
@@ -416,7 +416,7 @@ For technical support, bug reports, or feature requests, please contact:
 
 ## Version History
 
-### Version 3.1.0 (Current)
+### Version 3.2.0 (Current)
 - **NEW**: Dual macOS architecture support (Intel x86_64 + Apple Silicon arm64)
 - **NEW**: Centralized version management from Build_Version file
 - **NEW**: Architecture-specific DMG naming (LogViewer-{VERSION}-macOS-{ARCH}.dmg)

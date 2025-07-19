@@ -64,6 +64,10 @@ REM Generate updated version_info.txt
 echo Generating version info for version %VERSION%...
 python generate_version_info.py
 
+REM Update Inno Setup installer script with current version
+echo Updating Inno Setup installer script for version %VERSION%...
+python update_inno_version.py
+
 REM Build the executable
 echo Building Windows executable with version %VERSION%...
 pyinstaller --noconfirm log_viewer_windows.spec
