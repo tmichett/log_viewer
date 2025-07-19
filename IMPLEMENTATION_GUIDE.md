@@ -17,7 +17,7 @@ This guide documents the implementation of dual macOS architecture support (Inte
    - `LogViewer-{VERSION}-macOS-arm64.dmg`
 
 3. **Centralized Version Management**: All builds read from `rpmbuild/SOURCES/Build_Version`
-   - Single source of truth: `VERSION=3.1.0`
+   - Single source of truth: `VERSION=3.2.0` (current version)
    - Automatically propagates to all build artifacts
 
 4. **Enhanced GitHub Actions**: New workflow supports parallel dual builds
@@ -116,8 +116,8 @@ rpmbuild/SOURCES/
 │   └── Log Viewer.app          # Intel x86_64 app bundle
 ├── dist_arm64/
 │   └── Log Viewer.app          # Apple Silicon arm64 app bundle
-├── LogViewer-3.1.0-macOS-x86_64.dmg
-├── LogViewer-3.1.0-macOS-arm64.dmg
+├── LogViewer-3.2.0-macOS-x86_64.dmg
+├── LogViewer-3.2.0-macOS-arm64.dmg
 └── version_info.txt            # Auto-generated for Windows builds
 ```
 
@@ -189,8 +189,8 @@ lipo -info "dist_x86_64/Log Viewer.app/Contents/MacOS/log_viewer"
 lipo -info "dist_arm64/Log Viewer.app/Contents/MacOS/log_viewer"
 
 # Test DMG mounting
-hdiutil attach "LogViewer-3.1.0-macOS-x86_64.dmg"
-hdiutil attach "LogViewer-3.1.0-macOS-arm64.dmg"
+hdiutil attach "LogViewer-3.2.0-macOS-x86_64.dmg"
+hdiutil attach "LogViewer-3.2.0-macOS-arm64.dmg"
 ```
 
 ## 🔄 Migration from Single Architecture
@@ -287,5 +287,5 @@ This implementation maintains the same proprietary license as the original Log V
 ---
 
 *Generated: December 2024*
-*Version: 3.1.0*
+*Version: 3.2.0*
 *Implementation: Dual Architecture macOS Support* 

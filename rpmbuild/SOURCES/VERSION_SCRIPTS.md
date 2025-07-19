@@ -97,7 +97,9 @@ The version scripts are automatically called during platform builds:
 - `Build_Version` file bundled with executable via datas array  
 - RPM spec file updated via `update_rpm_version.sh`
 
-#### Windows Builds (`Build_App_Windows.bat`)
+#### Windows Builds
+
+**Local Builds (`Build_App_Windows.bat`)**:
 ```batch
 REM Read version from Build_Version file
 for /f "tokens=2 delims==" %%a in ('findstr "VERSION=" Build_Version 2^>nul') do set VERSION=%%a
@@ -110,6 +112,21 @@ REM Build with versioned output
 pyinstaller log_viewer_windows.spec
 ```
 
+**GitHub Actions Workflow (`.github/workflows/windows_build.yml`)**:
+Fixed in v3.2.0 - The workflow now calls version scripts in the correct order:
+```yaml
+# Generate version info
+python generate_version_info.py
+
+# Update Inno Setup script BEFORE building
+python update_inno_version.py
+
+# Build executable
+pyinstaller --noconfirm log_viewer_windows.spec
+```
+
+**Previous Issue**: The workflow was calling `update_inno_version.py` **after** PyInstaller, causing Inno Setup to reference non-existent versioned executables.
+
 #### Linux/RPM Builds (`Build_App.sh`)
 ```bash
 # Read version and update RPM spec
@@ -118,6 +135,12 @@ pyinstaller log_viewer_windows.spec
 # Build executable (includes Build_Version in bundle)
 pyinstaller --noconfirm ./log_viewer.spec
 ```
+
+**Recent Fix (v3.2.0)**: Updated `log_viewer.spec` to include `Build_Version` in the `datas` array:
+```python
+datas=[('config.yml', '.'), ('help_content.md', '.'), ('Build_Version', '.'), ...]
+```
+This ensures the Linux executable can read the version dynamically for the About dialog, fixing the issue where Linux builds were stuck at version 3.0.0.
 
 ## Version Consistency Verification
 
