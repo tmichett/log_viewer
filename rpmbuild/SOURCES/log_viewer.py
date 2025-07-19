@@ -10,6 +10,30 @@ import platform
 # Suppress deprecation warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+def get_application_version():
+    """Read version from Build_Version file or return default"""
+    try:
+        # Try to read from Build_Version file (bundled with app)
+        with open('Build_Version', 'r') as f:
+            for line in f:
+                if line.startswith('VERSION='):
+                    return line.split('=')[1].strip()
+    except FileNotFoundError:
+        try:
+            # Fallback: try to read from script directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            version_file = os.path.join(script_dir, 'Build_Version')
+            with open(version_file, 'r') as f:
+                for line in f:
+                    if line.startswith('VERSION='):
+                        return line.split('=')[1].strip()
+        except FileNotFoundError:
+            pass
+    return "3.0.0"  # Default fallback version
+
+# Get application version
+APP_VERSION = get_application_version()
+
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTextEdit, 
                            QVBoxLayout, QWidget, QPushButton, QFileDialog,
                            QHBoxLayout, QLineEdit, QLabel, QListWidget, 
@@ -431,7 +455,7 @@ class AboutDialog(QDialog):
         company_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(company_label)
         
-        version_label = QLabel("Version 3.0.0")
+        version_label = QLabel(f"Version {APP_VERSION}")
         version_label.setStyleSheet("""
             QLabel {
                 color: #ffffff;
@@ -1694,7 +1718,7 @@ def main():
     # Set application properties for all platforms
     app.setOrganizationName("Michette Technologies")
     app.setApplicationName("Log Viewer")
-    app.setApplicationVersion("3.0.0")
+    app.setApplicationVersion(APP_VERSION)
     
     # Platform-specific application settings
     if platform.system() == 'Windows':

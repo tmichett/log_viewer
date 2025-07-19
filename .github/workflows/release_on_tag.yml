@@ -1,0 +1,180 @@
+# Release on Tag Push Workflow
+# Waits for platform builds to complete, then creates a comprehensive release
+name: Create Release on Tag
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  create-comprehensive-release:
+    runs-on: ubuntu-latest
+    environment: deploy
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Extract tag name
+        id: tag
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Tag: $TAG_NAME"
+          
+      - name: Read version from Build_Version
+        id: version
+        run: |
+          cd rpmbuild/SOURCES
+          VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+          
+      - name: Wait for platform builds to complete
+        run: |
+          echo "Waiting for all platform builds to complete..."
+          echo "This gives time for the tag-triggered workflows to finish"
+          echo "Tag: ${{ steps.tag.outputs.tag_name }}"
+          echo "Version: ${{ steps.version.outputs.VERSION }}"
+          
+          # Wait for builds to complete (adjust timing as needed)
+          sleep 300  # 5 minutes should be enough for most builds
+          
+      - name: Download artifacts from completed builds
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Downloading artifacts from latest successful workflow runs..."
+          
+          # Create artifacts directory
+          mkdir -p release-artifacts
+          
+          # Install GitHub CLI (if not available)
+          if ! command -v gh &> /dev/null; then
+            echo "Installing GitHub CLI..."
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt update
+            sudo apt install gh
+          fi
+          
+          # Function to download artifacts from the latest successful run of a workflow
+          download_latest_artifacts() {
+            local workflow_name="$1"
+            echo "Downloading artifacts from: $workflow_name"
+            
+            # Get the latest successful run for this workflow
+            RUN_ID=$(gh run list --workflow="$workflow_name" --status=success --limit=1 --json=databaseId --jq='.[0].databaseId')
+            
+            if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+              echo "Found run ID: $RUN_ID for $workflow_name"
+              
+              # Download all artifacts from this run
+              gh run download $RUN_ID --dir release-artifacts/ || echo "No artifacts found for $workflow_name"
+              
+              echo "✅ Downloaded artifacts from $workflow_name"
+            else
+              echo "❌ No successful runs found for $workflow_name"
+            fi
+          }
+          
+          # Download from each platform workflow
+          download_latest_artifacts "Build macOS App - Dual Architecture"
+          download_latest_artifacts "Build Windows App"
+          download_latest_artifacts "Build RPM"
+          
+          echo "All downloaded artifacts:"
+          find release-artifacts -type f -ls || echo "No artifacts found"
+          
+      - name: Prepare release artifacts
+        run: |
+          echo "Organizing release artifacts..."
+          
+          # Create final artifacts directory
+          mkdir -p final-artifacts
+          
+          # Find and copy artifacts to final directory with proper naming
+          # Look for DMG files
+          find release-artifacts -name "*.dmg" -exec cp {} final-artifacts/ \;
+          
+          # Look for Windows executables and installers
+          find release-artifacts -name "LogViewer-*.exe" -exec cp {} final-artifacts/ \;
+          find release-artifacts -name "*-Setup.exe" -exec cp {} final-artifacts/ \;
+          
+          # Look for RPM files
+          find release-artifacts -name "*.rpm" -exec cp {} final-artifacts/ \;
+          
+          echo "Final release artifacts:"
+          ls -la final-artifacts/ || echo "No final artifacts prepared"
+          
+      - name: Create comprehensive release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: "Log Viewer v${{ steps.version.outputs.VERSION }}"
+          draft: true
+          generate_release_notes: false
+          body: |
+            # Log Viewer v${{ steps.version.outputs.VERSION }}
+            
+            A powerful log file viewer with ANSI color support and configurable highlighting features.
+            
+            ## 📦 Downloads by Platform
+            
+            ### 🍎 macOS (Choose your architecture)
+            - **Apple Silicon (M1/M2/M3)**: `LogViewer-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg`
+            - **Intel Macs**: `LogViewer-${{ steps.version.outputs.VERSION }}-macOS-x86_64.dmg`
+            
+            Both versions are compatible with either architecture via Rosetta 2, but native versions offer better performance.
+            
+            ### 🪟 Windows
+            - **Installer**: `LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe` (Recommended)
+            - **Portable**: `LogViewer-${{ steps.version.outputs.VERSION }}.exe` (No installation required)
+            
+            ### 🐧 Linux (Red Hat/Fedora)
+            - **RPM Package**: `LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm`
+            
+            ## 🚀 Installation
+            
+            ### macOS
+            1. Download the appropriate DMG for your Mac
+            2. Double-click to mount the DMG
+            3. Drag "Log Viewer.app" to Applications folder
+            
+            ### Windows
+            1. Download and run the installer, or
+            2. Download the portable exe and run directly
+            
+            ### Linux
+            ```bash
+            sudo rpm -ivh LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm
+            ```
+            
+            ## ✨ Features
+            - Fast search with highlighting
+            - ANSI color code support
+            - Configurable term highlighting
+            - Dark theme interface
+            - Handles large files efficiently
+            - Cross-platform compatibility
+            
+            ## 📋 System Requirements
+            - **macOS**: 10.14 (Mojave) or later
+            - **Windows**: Windows 10 or later
+            - **Linux**: Red Hat/Fedora-based distributions
+            
+            ## 🔧 Technical Details
+            - Built with Python 3.11+ and PyQt6
+            - Architecture-specific optimizations for macOS
+            - Centralized version management
+            - Enhanced GitHub Actions CI/CD
+            
+            ---
+            
+            **Support**: tmichett@redhat.com  
+            **Organization**: Michette Technologies
+          files: |
+            final-artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

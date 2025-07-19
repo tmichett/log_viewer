@@ -1,0 +1,204 @@
+# Automated Comprehensive Release Workflow
+# Creates a draft release with all platform artifacts automatically attached
+name: Automated Comprehensive Release
+
+on:
+  workflow_run:
+    workflows: ["Build macOS App - Dual Architecture", "Build Windows App", "Build RPM"]
+    types:
+      - completed
+
+jobs:
+  check-all-builds:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v')
+    outputs:
+      should_create_release: ${{ steps.check.outputs.should_create_release }}
+      version: ${{ steps.version.outputs.VERSION }}
+      tag_name: ${{ steps.check.outputs.tag_name }}
+      triggered_by: ${{ steps.check.outputs.triggered_by }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+        
+      - name: Read version from Build_Version
+        id: version
+        run: |
+          cd rpmbuild/SOURCES
+          VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+          
+             - name: Extract tag name and check trigger
+         id: check
+         run: |
+           # Extract tag name from the triggering workflow
+           TAG_NAME="${{ github.event.workflow_run.head_branch }}"
+           WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+           
+           echo "Triggered by workflow: $WORKFLOW_NAME"
+           echo "Branch/Tag: $TAG_NAME"
+           echo "triggered_by=$WORKFLOW_NAME" >> $GITHUB_OUTPUT
+           
+           if [[ "$TAG_NAME" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+             # Extract just the tag part (remove refs/tags/)
+             TAG_NAME=${TAG_NAME#refs/tags/}
+             echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+             echo "should_create_release=true" >> $GITHUB_OUTPUT
+             echo "Valid tag detected: $TAG_NAME"
+           else
+             echo "should_create_release=false" >> $GITHUB_OUTPUT
+             echo "Not a valid version tag: $TAG_NAME"
+           fi
+
+  wait-for-all-builds:
+    needs: check-all-builds
+    runs-on: ubuntu-latest
+    if: needs.check-all-builds.outputs.should_create_release == 'true'
+    
+    steps:
+      - name: Wait for all platform builds
+        run: |
+          echo "Waiting for all platform builds to complete..."
+          echo "Tag: ${{ needs.check-all-builds.outputs.tag_name }}"
+          echo "Version: ${{ needs.check-all-builds.outputs.version }}"
+          
+          # Wait a bit to ensure all workflows have time to complete
+          sleep 60
+
+  create-release-with-artifacts:
+    needs: [check-all-builds, wait-for-all-builds]
+    runs-on: ubuntu-latest
+    if: needs.check-all-builds.outputs.should_create_release == 'true'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          
+      - name: Download artifacts from latest workflow runs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Downloading artifacts from latest successful workflow runs..."
+          
+          # Create artifacts directory
+          mkdir -p artifacts
+          
+          # Get the latest successful workflow run IDs for each platform
+          # that matches our tag
+          TAG_REF="refs/tags/${{ needs.check-all-builds.outputs.tag_name }}"
+          
+          echo "Looking for workflows triggered by: $TAG_REF"
+          
+          # Function to download artifacts from a workflow
+          download_workflow_artifacts() {
+            local workflow_name="$1"
+            local expected_artifacts="$2"
+            
+            echo "Searching for '$workflow_name' workflow..."
+            
+            # Get the latest successful run for this workflow on our tag
+            RUN_ID=$(gh api repos/${{ github.repository }}/actions/runs \
+              --jq ".workflow_runs[] | select(.name == \"$workflow_name\" and .head_branch == \"$TAG_REF\" and .conclusion == \"success\") | .id" \
+              | head -1)
+            
+            if [ -n "$RUN_ID" ]; then
+              echo "Found run ID: $RUN_ID for $workflow_name"
+              
+              # Download artifacts from this run
+              gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts \
+                --jq '.artifacts[] | select(.name) | "\(.name) \(.archive_download_url)"' | \
+              while read name url; do
+                echo "Downloading artifact: $name"
+                gh api "$url" > "artifacts/${name}.zip"
+                cd artifacts && unzip -o "${name}.zip" && rm "${name}.zip" && cd ..
+              done
+              
+              echo "✅ Downloaded artifacts from $workflow_name"
+            else
+              echo "❌ No successful run found for $workflow_name with tag $TAG_REF"
+            fi
+          }
+          
+          # Download from each platform workflow
+          download_workflow_artifacts "Build macOS App - Dual Architecture" "2"
+          download_workflow_artifacts "Build Windows App" "2" 
+          download_workflow_artifacts "Build RPM" "1"
+          
+          echo "All available artifacts downloaded:"
+          find artifacts -type f -ls
+          
+      - name: Create comprehensive release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-all-builds.outputs.tag_name }}
+          name: "Log Viewer v${{ needs.check-all-builds.outputs.version }}"
+          draft: true
+          body: |
+            # Log Viewer v${{ needs.check-all-builds.outputs.version }}
+            
+            A powerful log file viewer with ANSI color support and configurable highlighting features.
+            
+            ## 📦 Downloads by Platform
+            
+            ### 🍎 macOS (Choose your architecture)
+            - **Apple Silicon (M1/M2/M3)**: `LogViewer-${{ needs.check-all-builds.outputs.version }}-macOS-arm64.dmg`
+            - **Intel Macs**: `LogViewer-${{ needs.check-all-builds.outputs.version }}-macOS-x86_64.dmg`
+            
+            Both versions are compatible with either architecture via Rosetta 2, but native versions offer better performance.
+            
+            ### 🪟 Windows
+            - **Installer**: `LogViewer-${{ needs.check-all-builds.outputs.version }}-Setup.exe` (Recommended)
+            - **Portable**: `LogViewer-${{ needs.check-all-builds.outputs.version }}.exe` (No installation required)
+            
+            ### 🐧 Linux (Red Hat/Fedora)
+            - **RPM Package**: `LogViewer-${{ needs.check-all-builds.outputs.version }}-0.rpm`
+            
+            ## 🚀 Installation
+            
+            ### macOS
+            1. Download the appropriate DMG for your Mac
+            2. Double-click to mount the DMG
+            3. Drag "Log Viewer.app" to Applications folder
+            
+            ### Windows
+            1. Download and run the installer, or
+            2. Download the portable exe and run directly
+            
+            ### Linux
+            ```bash
+            sudo rpm -ivh LogViewer-${{ needs.check-all-builds.outputs.version }}-0.rpm
+            ```
+            
+            ## ✨ Features
+            - Fast search with highlighting
+            - ANSI color code support
+            - Configurable term highlighting
+            - Dark theme interface
+            - Handles large files efficiently
+            - Cross-platform compatibility
+            
+            ## 📋 System Requirements
+            - **macOS**: 10.14 (Mojave) or later
+            - **Windows**: Windows 10 or later
+            - **Linux**: Red Hat/Fedora-based distributions
+            
+            ## 🔧 Technical Details
+            - Built with Python 3.11+ and PyQt6
+            - Architecture-specific optimizations for macOS
+            - Centralized version management
+            - Enhanced GitHub Actions CI/CD
+            
+            ---
+            
+            **Support**: tmichett@redhat.com  
+            **Organization**: Michette Technologies
+          files: |
+            artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
