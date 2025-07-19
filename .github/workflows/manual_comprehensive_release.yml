@@ -1,0 +1,141 @@
+# Manual Comprehensive Release Workflow
+# Creates a single draft release with all platform artifacts
+# Run this manually after all platform builds have completed
+name: Manual Comprehensive Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g., v3.1.0)'
+        required: true
+        type: string
+      include_artifacts:
+        description: 'Include all platform artifacts'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    environment: deploy
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Read version from Build_Version
+        id: version
+        run: |
+          cd rpmbuild/SOURCES
+          VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+          
+      - name: Validate tag format
+        run: |
+          if [[ ! "${{ github.event.inputs.tag_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Tag must be in format v#.#.# (e.g., v3.1.0)"
+            exit 1
+          fi
+          
+      - name: Download All Platform Artifacts
+        if: ${{ github.event.inputs.include_artifacts == 'true' }}
+        run: |
+          echo "Please ensure all platform builds have completed before running this workflow:"
+          echo "1. macOS Dual Architecture Build"
+          echo "2. Windows Build" 
+          echo "3. RPM Build"
+          echo ""
+          echo "Artifacts will be downloaded from the latest successful runs of each workflow."
+          
+      - name: Create Comprehensive Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          draft: true
+          name: "Log Viewer v${{ steps.version.outputs.VERSION }}"
+          body: |
+            # Log Viewer v${{ steps.version.outputs.VERSION }}
+            
+            A powerful log file viewer with ANSI color support and configurable highlighting features.
+            
+            ## 📦 Downloads by Platform
+            
+            ### 🍎 macOS (Choose your architecture)
+            - **Apple Silicon (M1/M2/M3)**: `LogViewer-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg`
+            - **Intel Macs**: `LogViewer-${{ steps.version.outputs.VERSION }}-macOS-x86_64.dmg`
+            
+            Both versions are compatible with either architecture via Rosetta 2, but native versions offer better performance.
+            
+            ### 🪟 Windows
+            - **Installer**: `LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe` (Recommended)
+            - **Portable**: `LogViewer-${{ steps.version.outputs.VERSION }}.exe` (No installation required)
+            
+            ### 🐧 Linux (Red Hat/Fedora)
+            - **RPM Package**: `LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm`
+            
+            ## 🚀 Installation
+            
+            ### macOS
+            1. Download the appropriate DMG for your Mac
+            2. Double-click to mount the DMG
+            3. Drag "Log Viewer.app" to Applications folder
+            
+            ### Windows
+            1. Download and run the installer, or
+            2. Download the portable exe and run directly
+            
+            ### Linux
+            ```bash
+            sudo rpm -ivh LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm
+            ```
+            
+            ## ✨ Features
+            - Fast search with highlighting
+            - ANSI color code support
+            - Configurable term highlighting
+            - Dark theme interface
+            - Handles large files efficiently
+            - Cross-platform compatibility
+            
+            ## 📋 System Requirements
+            - **macOS**: 10.14 (Mojave) or later
+            - **Windows**: Windows 10 or later
+            - **Linux**: Red Hat/Fedora-based distributions
+            
+            ## 🔧 Technical Details
+            - Built with Python 3.11+ and PyQt6
+            - Architecture-specific optimizations for macOS
+            - Centralized version management
+            - Enhanced GitHub Actions CI/CD
+            
+            ---
+            
+            ## 📥 How to Add Artifacts to This Release
+            
+            After running this workflow to create the draft release:
+            
+            1. **Download artifacts from completed workflow runs:**
+               - Go to Actions → Find the successful workflow runs
+               - Download the artifacts from each platform
+            
+            2. **Upload to the draft release:**
+               - Go to Releases → Find this draft release
+               - Drag and drop the downloaded files:
+                 - `LogViewer-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg`
+                 - `LogViewer-${{ steps.version.outputs.VERSION }}-macOS-x86_64.dmg`
+                 - `LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe`
+                 - `LogViewer-${{ steps.version.outputs.VERSION }}.exe`
+                 - `LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm`
+            
+            3. **Publish the release** when ready
+            
+            ---
+            
+            **Support**: tmichett@redhat.com  
+            **Organization**: Michette Technologies
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

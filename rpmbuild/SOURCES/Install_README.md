@@ -16,7 +16,12 @@ Log Viewer is a GUI application for viewing and searching through log files. It 
 pip3 install PyInstaller PyQt6 PyYAML
 ```
 
-2. Build the application:
+2. **Version Management**: Update the version in `Build_Version` file:
+```bash
+echo "VERSION=3.2.0" > Build_Version
+```
+
+3. Build the application:
 
 ### macOS (Dual Architecture)
 ```bash
