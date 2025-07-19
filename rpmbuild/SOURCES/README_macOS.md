@@ -204,8 +204,15 @@ alias lv='open -a "Log Viewer"'
 # Install dependencies
 pip3 install -r requirements.txt
 
+# Update version if needed
+echo "VERSION=3.2.0" > Build_Version
+
 # Build both architectures (recommended)
 ./Build_All_MacOS_Dual.sh
+
+# Output files (versioned):
+# - LogViewer-{VERSION}-macOS-arm64.dmg (Apple Silicon)
+# - LogViewer-{VERSION}-macOS-x86_64.dmg (Intel)
 
 # Or build specific architecture
 ./Build_All_MacOS_Dual.sh --x86_64-only    # Intel only

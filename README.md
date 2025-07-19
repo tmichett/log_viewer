@@ -317,8 +317,12 @@ cd rpmbuild/SOURCES
 cd rpmbuild/SOURCES
 Build_All_Windows.bat
 
+# Output files (versioned):
+# - LogViewer-{VERSION}.exe (portable executable)
+# - LogViewer-{VERSION}-Setup.exe (installer)
+
 # Or build individually:
-Build_App_Windows.bat          # Creates LogViewer.exe with dynamic versioning
+Build_App_Windows.bat          # Creates LogViewer-{VERSION}.exe with dynamic versioning
 # Then use Inno Setup to compile LogViewer_Installer.iss for installer
 
 # Manual build using PyInstaller:
@@ -335,7 +339,24 @@ pyinstaller --noconfirm log_viewer_windows.spec
 - **Linux RPM**: `.github/workflows/rpm_build.yml`
 - **macOS DMG (Dual Architecture)**: `.github/workflows/macos_build_dual.yml`
 - **Windows EXE/Installer**: `.github/workflows/windows_build.yml`
-- **Unified Release (All Platforms)**: `.github/workflows/unified_release.yml`
+- **Comprehensive Release**: `.github/workflows/manual_comprehensive_release.yml`
+
+#### Release Process
+1. **Update Version**: `echo "VERSION=3.2.0" > rpmbuild/SOURCES/Build_Version`
+2. **Create Tag**: Push a version tag (e.g., `v3.2.0`) to trigger all platform builds
+3. **Wait for Builds**: Monitor the Actions tab until all 3 platform workflows complete
+4. **Create Release**: Go to Actions → "Manual Comprehensive Release" → Run workflow
+5. **Add Artifacts**: Download artifacts from completed builds and upload to the draft release
+6. **Publish**: Review and publish the comprehensive release
+
+📋 **Detailed Process**: See [`RELEASE_PROCESS.md`](RELEASE_PROCESS.md) for complete instructions
+
+#### Artifacts Included in Release
+- `LogViewer-{VERSION}-macOS-arm64.dmg` (Apple Silicon)
+- `LogViewer-{VERSION}-macOS-x86_64.dmg` (Intel)
+- `LogViewer-{VERSION}-Setup.exe` (Windows installer)
+- `LogViewer-{VERSION}.exe` (Windows portable)
+- `LogViewer-{VERSION}-0.rpm` (Linux RPM)
 
 ### Contributing
 1. Fork the repository

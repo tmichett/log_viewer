@@ -47,14 +47,5 @@ jobs:
           path: /home/runner/rpmbuild/RPMS/x86_64/*.rpm
           retention-days: 30
 
-      - name: Create Release Draft
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          tag_name: ${{ github.ref_name }}
-          draft: true
-          name: "Log Viewer v${{ steps.version.outputs.VERSION }}"
-          files: |
-            /home/runner/rpmbuild/RPMS/x86_64/*.rpm
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Note: Release creation is handled by create_comprehensive_release.yml
+      # This workflow only creates and uploads artifacts
