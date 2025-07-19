@@ -254,7 +254,7 @@ cd rpmbuild/SOURCES
 # Update RPM spec file version
 ./update_rpm_version.sh
 
-# Update Windows installer version
+# Update Windows installer version and executable references
 python update_inno_version.py
 
 # Update Windows version info
@@ -262,6 +262,13 @@ python generate_version_info.py
 ```
 
 These scripts are automatically called during the build process but can be run manually if needed.
+
+**Note**: The `update_inno_version.py` script updates all version references in the Inno Setup installer script, including:
+- `MyAppVersion` definition
+- `MyAppExeName` definition 
+- Source file references in the [Files] section
+
+This ensures complete version consistency across all installer components.
 
 ## Development
 
@@ -332,8 +339,9 @@ pyinstaller --noconfirm log_viewer_windows.spec
 
 **Note**: The build process automatically:
 - Updates `version_info.txt` with current version
-- Updates Inno Setup installer script with current version
+- Updates Inno Setup installer script with current version (all references)
 - Generates versioned installer: `LogViewer-{VERSION}-Setup.exe`
+- Ensures version consistency across all Windows build components
 
 #### Cross-Platform GitHub Actions
 - **Linux RPM**: `.github/workflows/rpm_build.yml`
@@ -349,7 +357,8 @@ pyinstaller --noconfirm log_viewer_windows.spec
 5. **Add Artifacts**: Download artifacts from completed builds and upload to the draft release
 6. **Publish**: Review and publish the comprehensive release
 
-📋 **Detailed Process**: See [`RELEASE_PROCESS.md`](RELEASE_PROCESS.md) for complete instructions
+📋 **Detailed Process**: See [`RELEASE_PROCESS.md`](RELEASE_PROCESS.md) for complete instructions  
+🔧 **Version Scripts**: See [`rpmbuild/SOURCES/VERSION_SCRIPTS.md`](rpmbuild/SOURCES/VERSION_SCRIPTS.md) for version management details
 
 #### Artifacts Included in Release
 - `LogViewer-{VERSION}-macOS-arm64.dmg` (Apple Silicon)

@@ -142,6 +142,19 @@ If any platform build fails:
 3. Re-tag if necessary: `git tag -d v3.2.0 && git push origin :refs/tags/v3.2.0`
 4. Create a new tag and restart the process
 
+### Version Sync Issues
+If you encounter version mismatch errors (e.g., "Source file LogViewer-X.X.X.exe does not exist"):
+1. **Check Build_Version**: Ensure the version is correct in `rpmbuild/SOURCES/Build_Version`
+2. **Re-run Version Scripts**: Manually run the version update scripts:
+   ```bash
+   cd rpmbuild/SOURCES
+   python3 update_inno_version.py    # Updates Windows installer script
+   python3 generate_version_info.py  # Updates Windows version info
+   ./update_rpm_version.sh           # Updates RPM spec file
+   ```
+3. **Verify Updates**: Check that all files reference the same version
+4. **Commit and Re-build**: Commit the version updates and trigger a new build
+
 ### Missing Artifacts
 If artifacts are missing from a workflow:
 1. Check if the workflow completed successfully
