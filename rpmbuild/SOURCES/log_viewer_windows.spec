@@ -76,4 +76,4 @@ exe.version = VERSION
 exe.description = 'Log Viewer - A powerful log file viewer with ANSI color support'
 exe.company = 'Michette Technologies'
 exe.product = 'Log Viewer'
-exe.copyright = '© 2024 Michette Technologies' 
+exe.copyright = '(C) 2024 Michette Technologies' 

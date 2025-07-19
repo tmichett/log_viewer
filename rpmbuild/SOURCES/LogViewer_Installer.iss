@@ -35,7 +35,7 @@ WizardStyle=modern
 VersionInfoVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName} Installer
-VersionInfoCopyright=© 2024 {#MyAppPublisher}
+VersionInfoCopyright=(C) 2024 {#MyAppPublisher}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

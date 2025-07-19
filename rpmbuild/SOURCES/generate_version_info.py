@@ -10,7 +10,7 @@ import sys
 def read_version_from_file():
     """Read version from Build_Version file"""
     try:
-        with open('Build_Version', 'r') as f:
+        with open('Build_Version', 'r', encoding='utf-8') as f:
             for line in f:
                 if line.startswith('VERSION='):
                     return line.split('=')[1].strip()
@@ -60,7 +60,7 @@ VSVersionInfo(
             StringStruct(u'FileDescription', u'Log Viewer - A powerful log file viewer with ANSI color support'),
             StringStruct(u'FileVersion', u'{version_str}'),
             StringStruct(u'InternalName', u'LogViewer'),
-            StringStruct(u'LegalCopyright', u'© 2024 Michette Technologies'),
+            StringStruct(u'LegalCopyright', u'(C) 2024 Michette Technologies'),
             StringStruct(u'OriginalFilename', u'LogViewer.exe'),
             StringStruct(u'ProductName', u'Log Viewer'),
             StringStruct(u'ProductVersion', u'{version_str}'),
@@ -85,8 +85,8 @@ def main():
     # Generate version info
     version_info_content = generate_version_info(version)
     
-    # Write to file
-    with open('version_info.txt', 'w') as f:
+    # Write to file with UTF-8 encoding
+    with open('version_info.txt', 'w', encoding='utf-8') as f:
         f.write(version_info_content)
     
     print("version_info.txt generated successfully")
