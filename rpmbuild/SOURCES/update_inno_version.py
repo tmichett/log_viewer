@@ -39,7 +39,7 @@ def update_inno_script(version):
     content = re.sub(r'#define MyAppExeName ".*"', f'#define MyAppExeName "{versioned_exe_name}"', content)
     
     # Replace the source file reference in [Files] section
-    content = re.sub(r'Source: "LogViewer\.exe"', f'Source: "{versioned_exe_name}"', content)
+    content = re.sub(r'Source: "LogViewer.*\.exe"', f'Source: "{versioned_exe_name}"', content)
     
     # Write back the updated script
     with open(script_path, 'w') as f:

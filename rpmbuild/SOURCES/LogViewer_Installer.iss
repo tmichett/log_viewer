@@ -2,10 +2,10 @@
 ; Author: tmichett@redhat.com
 
 #define MyAppName "Log Viewer"
-#define MyAppVersion "3.1.0"
+#define MyAppVersion "3.2.0"
 #define MyAppPublisher "Michette Technologies"
 #define MyAppURL "https://github.com/tmichett/log_viewer"
-#define MyAppExeName "LogViewer-3.1.0.exe"
+#define MyAppExeName "LogViewer-3.2.0.exe"
 #define MyAppAssocName "Log Files"
 #define MyAppAssocExt ".log"
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
@@ -45,7 +45,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
 
 [Files]
-Source: "LogViewer-3.1.0.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "LogViewer-3.2.0.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "config.yml"; DestDir: "{app}"; Flags: ignoreversion
 Source: "test.log"; DestDir: "{app}"; Flags: ignoreversion
 Source: "smallicon.ico"; DestDir: "{app}"; Flags: ignoreversion
