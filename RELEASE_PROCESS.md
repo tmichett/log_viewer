@@ -129,6 +129,7 @@ The build processes automatically update:
 - **Windows installer scripts** (via `update_inno_version.py`)
 - **Windows version info** (via `generate_version_info.py`)
 - **macOS app bundles** (via PyInstaller spec files)
+- **Linux executables** (via PyInstaller spec file with bundled Build_Version)
 
 ### Consistent Naming
 All artifacts follow the pattern: `LogViewer-{VERSION}-{PLATFORM}.{EXT}`

@@ -89,7 +89,13 @@ The version scripts are automatically called during platform builds:
 
 #### macOS Builds
 - Version read directly from `Build_Version` in PyInstaller spec files
+- `Build_Version` file bundled with app bundle via datas array
 - No additional scripts needed (Python handles version reading)
+
+#### Linux Builds
+- Version read directly from `Build_Version` in PyInstaller spec file
+- `Build_Version` file bundled with executable via datas array  
+- RPM spec file updated via `update_rpm_version.sh`
 
 #### Windows Builds (`Build_App_Windows.bat`)
 ```batch
@@ -109,7 +115,8 @@ pyinstaller log_viewer_windows.spec
 # Read version and update RPM spec
 ./update_rpm_version.sh
 
-# Continue with build process
+# Build executable (includes Build_Version in bundle)
+pyinstaller --noconfirm ./log_viewer.spec
 ```
 
 ## Version Consistency Verification
