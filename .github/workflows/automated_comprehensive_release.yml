@@ -32,9 +32,9 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Release version: $VERSION"
           
-             - name: Extract tag name and check trigger
-         id: check
-         run: |
+      - name: Extract tag name and check trigger
+        id: check
+        run: |
            # Extract tag name from the triggering workflow
            TAG_NAME="${{ github.event.workflow_run.head_branch }}"
            WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
