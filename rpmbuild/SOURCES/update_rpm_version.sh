@@ -1,6 +1,6 @@
 #!/bin/bash
 ## Script to update RPM spec file with version from Build_Version
-## Author: tmichett@redhat.com
+## Author: travis@michettetech.com
 
 # Read version from Build_Version file
 get_version() {

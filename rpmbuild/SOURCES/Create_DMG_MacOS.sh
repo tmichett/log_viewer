@@ -1,6 +1,6 @@
 #!/bin/bash
 ## Script to Create macOS DMG Package
-## Author: tmichett@redhat.com
+## Author: travis@michettetech.com
 
 # Check if we're running on macOS
 if [[ "$OSTYPE" != "darwin"* ]]; then
@@ -83,7 +83,7 @@ USAGE:
 - Configuration is stored in ~/Library/Application Support/LogViewer/
 
 SUPPORT:
-Email: tmichett@redhat.com
+Email: travis@michettetech.com
 Organization: Michette Technologies
 
 Copyright © 2024 Michette Technologies. All rights reserved.

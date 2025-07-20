@@ -277,7 +277,7 @@ pip show pyinstaller
 ## 📞 Support
 
 For technical support or questions about the dual architecture implementation:
-- **Email**: tmichett@redhat.com
+- **Email**: travis@michettetech.com
 - **Organization**: Michette Technologies
 
 ## 📄 License

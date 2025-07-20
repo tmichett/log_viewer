@@ -186,7 +186,7 @@ If there are issues with the release:
 For issues with the release process:
 - Check existing GitHub Issues
 - Review workflow logs in the Actions tab
-- Contact: tmichett@redhat.com
+- Contact: travis@michettetech.com
 
 ---
 

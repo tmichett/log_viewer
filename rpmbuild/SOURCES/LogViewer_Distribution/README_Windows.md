@@ -132,7 +132,7 @@ highlight_terms:
 ## Support
 
 For issues or questions:
-- Email: tmichett@redhat.com
+- Email: travis@michettetech.com
 - Organization: Michette Technologies
 
 ## Version Information

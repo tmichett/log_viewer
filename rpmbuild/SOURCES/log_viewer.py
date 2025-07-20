@@ -410,7 +410,7 @@ class HelpDialog(QDialog):
             <h2>Support</h2>
             <p>For additional help or to report issues:</p>
             <ul>
-                <li><strong>Email:</strong> tmichett@redhat.com</li>
+                <li><strong>Email:</strong> travis@michettetech.com</li>
                 <li><strong>Organization:</strong> Michette Technologies</li>
             </ul>
         </body>

@@ -1,6 +1,6 @@
 #!/bin/bash
 ## Script to Build macOS App Bundle for Apple Silicon arm64
-## Author: tmichett@redhat.com
+## Author: travis@michettetech.com
 
 # Check if we're running on macOS
 if [[ "$OSTYPE" != "darwin"* ]]; then

@@ -1,5 +1,5 @@
 ; Inno Setup Installer Script for Log Viewer
-; Author: tmichett@redhat.com
+; Author: travis@michettetech.com
 
 #define MyAppName "Log Viewer"
 #define MyAppVersion "3.3.0"

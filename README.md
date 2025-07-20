@@ -411,7 +411,7 @@ This software is proprietary to Michette Technologies. All rights reserved.
 ## Support
 
 For technical support, bug reports, or feature requests, please contact:
-- **Email**: tmichett@redhat.com
+- **Email**: travis@michettetech.com
 - **Organization**: Michette Technologies
 
 ## Version History

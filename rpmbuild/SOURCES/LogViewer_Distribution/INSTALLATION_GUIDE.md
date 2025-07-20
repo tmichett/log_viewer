@@ -155,7 +155,7 @@ highlight_terms:
 ## 📞 Support
 
 For help or to report issues:
-- **Email**: tmichett@redhat.com
+- **Email**: travis@michettetech.com
 - **Organization**: Michette Technologies
 
 ## 📜 License & Version

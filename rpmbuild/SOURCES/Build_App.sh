@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 ## Script to Build Executable Python App
-## Author: tmichett@redhat.com
+## Author: travis@michettetech.com
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

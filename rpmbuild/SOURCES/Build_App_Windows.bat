@@ -1,6 +1,6 @@
 @echo off
 REM Script to Build Windows Executable
-REM Author: tmichett@redhat.com
+REM Author: travis@michettetech.com
 
 REM Read version from Build_Version file
 for /f "tokens=2 delims==" %%a in ('findstr "VERSION=" Build_Version 2^>nul') do set VERSION=%%a

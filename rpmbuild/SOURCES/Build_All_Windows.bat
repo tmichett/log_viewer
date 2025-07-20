@@ -1,7 +1,7 @@
 @echo off
 REM Comprehensive Windows Build Script
 REM Builds both executable and installer
-REM Author: tmichett@redhat.com
+REM Author: travis@michettetech.com
 
 echo ============================================
 echo Log Viewer - Complete Windows Build Process

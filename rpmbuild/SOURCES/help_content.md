@@ -151,7 +151,7 @@ log_viewer --config /path/to/config.yml /path/to/file.log
 ## Support
 
 For additional help or to report issues:
-- **Email**: tmichett@redhat.com
+- **Email**: travis@michettetech.com
 - **Organization**: Michette Technologies
 
 ## Version Information

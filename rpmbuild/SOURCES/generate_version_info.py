@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate version_info.txt for Windows builds from Build_Version file
-Author: tmichett@redhat.com
+Author: travis@michettetech.com
 """
 
 import os

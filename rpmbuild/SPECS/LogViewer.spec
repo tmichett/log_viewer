@@ -59,7 +59,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Sat Jul 11 2025 Log Viewer Build <tmichett@redhat.com> - 3.0.0-0
+* Sat Jul 11 2025 Log Viewer Build <travis@michettetech.com> - 3.0.0-0
 - Enhanced search functionality with entire line highlighting
 - Added bidirectional search navigation (Find Next/Find Previous)
 - Improved search highlighting with proper cleanup of previous highlights
@@ -74,7 +74,7 @@ rm -rf $RPM_BUILD_ROOT
 - Improved user interface with tooltips and better navigation
 - Added support for clearing search results with Escape key
 
-* Tue May 27 2025 Log Viewer Build <tmichett@redhat.com> - 1.3.1-0
+* Tue May 27 2025 Log Viewer Build <travis@michettetech.com> - 1.3.1-0
 - Major performance improvements for file loading
 - Switched to more efficient QPlainTextEdit for text display
 - Implemented chunk-based rendering for large files
@@ -82,12 +82,12 @@ rm -rf $RPM_BUILD_ROOT
 - Optimized search operations for better performance
 - Added debounced search to prevent UI freezing
 
-* Tue May 27 2025 Log Viewer Build <tmichett@redhat.com> - 1.2-5
+* Tue May 27 2025 Log Viewer Build <travis@michettetech.com> - 1.2-5
 - Added configuration GUI for highlighting terms
 - Added support for custom config files through GUI
 - Added command-line arguments for config files and log files
 - Improved documentation
 
 
-* Mon May 5 2023 Log Viewer Build <tmichett@redhat.com> - 1.0-0
+* Mon May 5 2023 Log Viewer Build <travis@michettetech.com> - 1.0-0
 - Initial package build

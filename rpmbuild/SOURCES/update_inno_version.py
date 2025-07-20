@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Update Inno Setup installer script with version from Build_Version file
-Author: tmichett@redhat.com
+Author: travis@michettetech.com
 """
 
 import os

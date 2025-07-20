@@ -1,7 +1,7 @@
 #!/bin/bash
 ## Comprehensive macOS Build Script - Dual Architecture
 ## Builds both Intel x86_64 and Apple Silicon arm64 App Bundles and DMG Packages
-## Author: tmichett@redhat.com
+## Author: travis@michettetech.com
 
 # Check if we're running on macOS
 if [[ "$OSTYPE" != "darwin"* ]]; then

@@ -46,7 +46,7 @@ KEYBOARD SHORTCUTS:
 - Ctrl+Q: Quit
 
 SUPPORT:
-Email: tmichett@redhat.com
+Email: travis@michettetech.com
 Organization: Michette Technologies
 
 For detailed documentation, see INSTALLATION_GUIDE.md

@@ -249,7 +249,7 @@ xcrun notarytool submit "Log Viewer.zip" --keychain-profile "AC_PASSWORD" --wait
 ## Support
 
 For technical support, bug reports, or feature requests:
-- **Email**: tmichett@redhat.com
+- **Email**: travis@michettetech.com
 - **Organization**: Michette Technologies
 - **License**: Proprietary
 

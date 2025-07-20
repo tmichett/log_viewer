@@ -134,7 +134,7 @@ jobs:
             
             ---
             
-            **Support**: tmichett@redhat.com  
+            **Support**: travis@michettetech.com  
             **Organization**: Michette Technologies
           generate_release_notes: false
         env:

@@ -1,7 +1,7 @@
 #!/bin/bash
 ## Comprehensive macOS Build Script
 ## Builds both App Bundle and DMG Package
-## Author: tmichett@redhat.com
+## Author: travis@michettetech.com
 
 # Check if we're running on macOS
 if [[ "$OSTYPE" != "darwin"* ]]; then
