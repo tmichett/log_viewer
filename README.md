@@ -416,7 +416,15 @@ For technical support, bug reports, or feature requests, please contact:
 
 ## Version History
 
-### Version 3.2.0 (Current)
+### Version 3.3.0 (Current)
+- **FIXED**: Critical Windows installer version mismatch causing GitHub Actions failures
+- **FIXED**: Enhanced `update_inno_version.py` script to handle both versioned and unversioned executables automatically
+- **FIXED**: GitHub Actions workflow YAML syntax error in `automated_comprehensive_release.yml`
+- **UPDATED**: Contact information - updated all email addresses from `tmichett@redhat.com` to `travis@michettetech.com`
+- **IMPROVED**: More robust version management ensuring automatic updates work seamlessly across all future releases
+- **ENHANCED**: Build automation reliability for Windows installer creation process
+
+### Version 3.2.0
 - **NEW**: Dual macOS architecture support (Intel x86_64 + Apple Silicon arm64)
 - **NEW**: Centralized version management from Build_Version file
 - **NEW**: Architecture-specific DMG naming (LogViewer-{VERSION}-macOS-{ARCH}.dmg)

@@ -219,6 +219,28 @@ hdiutil attach "LogViewer-3.2.0-macOS-arm64.dmg"
 
 ## 🛠️ Troubleshooting
 
+### Recent Fixes (v3.3.0)
+
+#### Windows Installer Version Mismatch (RESOLVED)
+**Issue**: "Source file LogViewer-X.X.X.exe does not exist" during installer creation  
+**Root Cause**: Version mismatch between `Build_Version` file and Inno Setup installer script  
+**Fix Applied**: 
+- Enhanced `update_inno_version.py` with improved regex pattern `LogViewer.*\.exe`
+- Corrected GitHub Actions workflow timing to call version scripts before building
+- Now handles automatic upgrades from any previous version
+
+#### GitHub Actions Workflow Issues (RESOLVED)
+**Issue**: "Invalid workflow file" with YAML syntax errors  
+**Root Cause**: Incorrect indentation in `automated_comprehensive_release.yml`  
+**Fix Applied**: 
+- Corrected step indentation and YAML structure
+- All workflows now validate successfully
+- Automated release process works reliably
+
+#### Contact Information Updated
+**Change**: Updated all email addresses from `tmichett@redhat.com` to `travis@michettetech.com`  
+**Scope**: 29 files updated across entire codebase including scripts, documentation, and workflows
+
 ### Common Issues
 
 #### Version Not Updating

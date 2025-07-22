@@ -143,6 +143,19 @@ If any platform build fails:
 ### Version Sync Issues
 If you encounter version mismatch errors (e.g., "Source file LogViewer-X.X.X.exe does not exist"):
 
+#### Recent Fixes: Windows Build Issues (Fixed in v3.3.0)
+**Windows Installer Version Mismatch (RESOLVED)**:
+This critical error was caused by a version mismatch where the `Build_Version` file contained version 3.3.0 but the Inno Setup installer script was still expecting version 3.2.0. This has been **permanently fixed** by:
+- **Corrected Workflow Timing**: Moving `update_inno_version.py` call to **before** PyInstaller in the GitHub Actions workflow
+- **Improved Regex Pattern**: Enhanced the update script to handle both versioned and unversioned executables using pattern `LogViewer.*\.exe`
+- **Automatic Version Sync**: All future version changes will now automatically update the installer script correctly
+
+**GitHub Actions Workflow Fix (RESOLVED)**:
+Fixed YAML syntax error in `automated_comprehensive_release.yml` that was causing workflow validation failures:
+- Corrected indentation for step definitions
+- Fixed malformed YAML structure that prevented workflow execution
+- All automated release workflows now validate and run correctly
+
 #### Recent Fix: Windows Build Timing Issue (Fixed in v3.2.0)
 This error was caused by a timing issue in the GitHub Actions Windows build workflow where `update_inno_version.py` was called **after** PyInstaller instead of before. This has been **fixed** by:
 - Moving `update_inno_version.py` call to **before** PyInstaller in the workflow

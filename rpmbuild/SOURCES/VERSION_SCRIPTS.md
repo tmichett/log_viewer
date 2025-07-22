@@ -142,6 +142,12 @@ datas=[('config.yml', '.'), ('help_content.md', '.'), ('Build_Version', '.'), ..
 ```
 This ensures the Linux executable can read the version dynamically for the About dialog, fixing the issue where Linux builds were stuck at version 3.0.0.
 
+**Recent Fixes (v3.3.0)**: 
+- **Windows Installer Version Mismatch**: Fixed critical issue where `update_inno_version.py` was called after PyInstaller in the GitHub Actions workflow, causing Inno Setup to reference non-existent versioned executables. The workflow now correctly calls version scripts before building.
+- **Enhanced Regex Pattern**: Improved `update_inno_version.py` to handle both versioned and unversioned executables by changing the regex pattern from `LogViewer\.exe` to `LogViewer.*\.exe`, ensuring automatic version updates work regardless of previous state.
+- **GitHub Actions Workflow Fix**: Corrected YAML syntax error in `automated_comprehensive_release.yml` that was causing workflow validation failures.
+- **Contact Information**: Updated all author and support email addresses from `tmichett@redhat.com` to `travis@michettetech.com` across the entire codebase.
+
 ## Version Consistency Verification
 
 ### Manual Verification
