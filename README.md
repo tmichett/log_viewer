@@ -416,7 +416,7 @@ For technical support, bug reports, or feature requests, please contact:
 
 ## Version History
 
-### Version 3.3.0 (Current)
+### Version 3.6.0 (Current)
 - **FIXED**: Critical Windows installer version mismatch causing GitHub Actions failures
 - **FIXED**: Enhanced `update_inno_version.py` script to handle both versioned and unversioned executables automatically
 - **FIXED**: GitHub Actions workflow YAML syntax error in `automated_comprehensive_release.yml`
