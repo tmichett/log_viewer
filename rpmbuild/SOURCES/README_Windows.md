@@ -86,6 +86,25 @@ A powerful log file viewer with ANSI color support and configurable highlighting
 - **Uninstall Support**: Full uninstall capability through Control Panel
 - Works well with Windows display scaling settings
 
+### Silent Installation (Unattended)
+- **Silent Install**: `LogViewer-{VERSION}-Setup.exe /SILENT`
+  - Shows progress dialog but requires no user interaction
+  - Installs to default location with default settings
+- **Very Silent Install**: `LogViewer-{VERSION}-Setup.exe /VERYSILENT`
+  - Completely silent installation with no UI
+  - Ideal for automated deployments
+- **Silent with Custom Directory**: `LogViewer-{VERSION}-Setup.exe /VERYSILENT /DIR="C:\MyApps\LogViewer"`
+  - Installs silently to specified directory
+- **Complete Silent Options**: `LogViewer-{VERSION}-Setup.exe /VERYSILENT /NORESTART /SUPPRESSMSGBOXES /DIR="C:\Program Files\LogViewer"`
+  - Recommended for enterprise deployments
+  - No restarts, no message boxes, custom location
+
+**Enterprise Deployment Notes**:
+- Silent installations will NOT launch the application automatically
+- Desktop shortcuts are created based on installer defaults
+- File associations (.log, .out, .txt) are configured automatically
+- Unattended uninstall: `"%ProgramFiles%\Log Viewer\unins000.exe" /SILENT`
+
 ### File Encoding
 - Automatically detects file encoding (UTF-8, UTF-16, CP1252, Latin-1)
 - Handles Windows-specific text formats
@@ -176,3 +195,52 @@ For issues or questions:
 - Version: 3.2.0
 - Compatible with: Windows 10/11, Python 3.8+
 - Last Updated: 2024 
+
+## Code Signing for Microsoft Store Submission
+
+### Microsoft Store Requirements
+Microsoft Store Policy 10.2.9 requires all applications to be digitally signed with SHA256 or higher code signing certificates. This is mandatory for store submission.
+
+### Obtaining a Code Signing Certificate
+
+**Option 1: Microsoft Trusted Signing (Recommended)**
+- Cloud-based signing service
+- No hardware requirements
+- ~$9/month
+- Sign up at: https://learn.microsoft.com/en-us/azure/trusted-signing/
+
+**Option 2: Traditional Code Signing Certificate**
+- Purchase from Certificate Authority (DigiCert, Sectigo, etc.)
+- $200-400/year
+- EV certificates provide instant reputation
+
+### Setting Up Code Signing for Build Process
+
+1. **Set Environment Variables**:
+   ```cmd
+   # For certificate store signing
+   set CODESIGN_IDENTITY="Michette Technologies"
+   set CODESIGN_TIMESTAMP=http://timestamp.digicert.com
+   
+   # For PFX file signing
+   set CODESIGN_PFX_FILE=C:\path\to\certificate.pfx
+   set CODESIGN_PASSWORD=your_certificate_password
+   set CODESIGN_TIMESTAMP=http://timestamp.digicert.com
+   ```
+
+2. **Build with Code Signing**:
+   ```cmd
+   cd rpmbuild/SOURCES
+   Build_App_Windows.bat
+   ```
+
+3. **Verify Signature**:
+   ```cmd
+   signtool verify /pa /v LogViewer-{VERSION}.exe
+   ```
+
+### Code Signing Notes
+- Timestamping is crucial - allows signatures to remain valid after certificate expiry
+- Signed executables are required for Microsoft Store submission
+- Build process automatically signs if environment variables are set
+- Both PyInstaller signing and post-build SignTool signing are supported 
