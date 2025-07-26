@@ -19,6 +19,20 @@ def get_version():
 VERSION = get_version()
 print(f"Building Windows executable version: {VERSION}")
 
+# Code signing configuration
+# Set these environment variables for code signing:
+# CODESIGN_IDENTITY - Certificate thumbprint or subject name
+# CODESIGN_PASSWORD - Certificate password (if using PFX file)
+# CODESIGN_TIMESTAMP - Timestamp server URL
+CODESIGN_IDENTITY = os.environ.get('CODESIGN_IDENTITY', None)
+CODESIGN_PASSWORD = os.environ.get('CODESIGN_PASSWORD', None)
+CODESIGN_TIMESTAMP = os.environ.get('CODESIGN_TIMESTAMP', 'http://timestamp.digicert.com')
+
+if CODESIGN_IDENTITY:
+    print(f"Code signing enabled with identity: {CODESIGN_IDENTITY}")
+else:
+    print("Code signing disabled - set CODESIGN_IDENTITY environment variable to enable")
+
 block_cipher = None
 
 a = Analysis(
@@ -63,7 +77,7 @@ exe = EXE(
     console=False,  # Windows GUI application
     disable_windowed_traceback=False,
     target_arch=None,
-    codesign_identity=None,
+    codesign_identity=CODESIGN_IDENTITY,
     entitlements_file=None,
     icon='smallicon.png',  # Windows will convert PNG to ICO automatically
     version='version_info.txt',  # Add version info
