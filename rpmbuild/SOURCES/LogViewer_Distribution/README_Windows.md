@@ -111,6 +111,37 @@ To associate log files with the viewer:
 3. Browse to `log_viewer.bat`
 4. Check "Always use this app to open .log files"
 
+## Silent Installation (For IT Deployments)
+
+If you obtained this software via the installer (`LogViewer-{VERSION}-Setup.exe`), it supports silent installation for enterprise deployments:
+
+### Silent Installation Options
+```cmd
+# Basic silent installation (shows progress)
+LogViewer-3.3.0-Setup.exe /SILENT
+
+# Completely silent installation (no UI)
+LogViewer-3.3.0-Setup.exe /VERYSILENT
+
+# Silent with custom directory
+LogViewer-3.3.0-Setup.exe /VERYSILENT /DIR="C:\Apps\LogViewer"
+
+# Enterprise deployment (recommended)
+LogViewer-3.3.0-Setup.exe /VERYSILENT /NORESTART /SUPPRESSMSGBOXES /DIR="C:\Program Files\LogViewer"
+```
+
+### Silent Uninstallation
+```cmd
+# Uninstall silently
+"%ProgramFiles%\Log Viewer\unins000.exe" /SILENT
+```
+
+**Notes**:
+- Silent installations automatically configure file associations
+- No user interaction required during installation
+- Application will not auto-launch after silent install
+- Ideal for Group Policy deployment or system imaging
+
 ## Advanced Configuration
 
 ### Custom Config File

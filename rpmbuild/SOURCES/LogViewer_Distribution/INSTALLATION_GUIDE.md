@@ -93,6 +93,61 @@ To make `.log` files open automatically with LogViewer:
    `C:\Program Files\LogViewer\`
 2. Right-click `LogViewer.exe` → "Pin to Start"
 
+## 🤖 Automated/Silent Installation
+
+### Using the Windows Installer (Recommended for IT Deployments)
+If you have the installer version (`LogViewer-{VERSION}-Setup.exe`), you can deploy silently:
+
+```cmd
+# Basic silent installation
+LogViewer-3.3.0-Setup.exe /SILENT
+
+# Completely silent installation (no UI)
+LogViewer-3.3.0-Setup.exe /VERYSILENT
+
+# Silent with custom directory
+LogViewer-3.3.0-Setup.exe /VERYSILENT /DIR="C:\Apps\LogViewer"
+
+# Enterprise deployment (recommended)
+LogViewer-3.3.0-Setup.exe /VERYSILENT /NORESTART /SUPPRESSMSGBOXES /DIR="C:\Program Files\LogViewer"
+```
+
+### Portable Deployment
+For environments where you can't use installers:
+
+1. **Network Deployment**: Copy the entire distribution folder to a shared location
+2. **Script Deployment**: Use PowerShell or batch scripts to copy files
+3. **USB/Portable**: Run directly from removable media
+
+```powershell
+# PowerShell deployment script example
+$source = "\\server\share\LogViewer_Distribution"
+$destination = "C:\Program Files\LogViewer"
+
+if (!(Test-Path $destination)) {
+    New-Item -ItemType Directory -Path $destination -Force
+}
+
+Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
+Write-Host "LogViewer deployed to $destination"
+
+# Create desktop shortcut
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Log Viewer.lnk")
+$shortcut.TargetPath = "$destination\LogViewer.exe"
+$shortcut.WorkingDirectory = $destination
+$shortcut.Save()
+```
+
+### Silent Uninstallation
+```cmd
+# Uninstall silently (if installed via installer)
+"%ProgramFiles%\Log Viewer\unins000.exe" /SILENT
+
+# Complete silent uninstall
+"%ProgramFiles%\Log Viewer\unins000.exe" /VERYSILENT /NORESTART
+```
+
 ## 📊 Performance Tips
 
 ### For Large Files (>100MB)
@@ -111,6 +166,29 @@ To make `.log` files open automatically with LogViewer:
 - **No Internet Required**: Application works completely offline
 - **No Registry Changes**: Application doesn't modify Windows registry
 - **Portable**: Can be run from any location (USB drive, network share, etc.)
+
+### Digital Signatures and Microsoft Store Compliance
+This executable is digitally signed with a SHA256 code signing certificate to meet Microsoft Store Policy 10.2.9 requirements. You can verify the signature:
+
+```cmd
+# Verify digital signature
+signtool verify /pa /v LogViewer.exe
+
+# View certificate details
+signtool verify /pa /v /all LogViewer.exe
+```
+
+**Certificate Information:**
+- **Publisher**: Michette Technologies
+- **Algorithm**: SHA256 or higher
+- **Timestamp**: RFC 3161 timestamped for long-term validity
+- **Trust Chain**: Chains to a trusted root certificate authority
+
+**Why Digital Signing Matters:**
+- **Authenticity**: Confirms the software comes from Michette Technologies
+- **Integrity**: Ensures the executable hasn't been modified since signing
+- **Trust**: Meets enterprise security policies and Microsoft Store requirements
+- **Reputation**: Builds trust with Windows Defender SmartScreen
 
 ## 📝 Configuration Files
 

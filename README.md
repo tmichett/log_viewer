@@ -84,7 +84,19 @@ LogViewer-VERSION-Setup.exe
 
 # Option 2: Run the portable executable directly (replace VERSION with current version)
 LogViewer-VERSION.exe
+
+# Option 3: Silent installation for enterprise deployment
+LogViewer-VERSION-Setup.exe /VERYSILENT /NORESTART /SUPPRESSMSGBOXES /DIR="C:\Program Files\LogViewer"
 ```
+
+**Silent Installation Options**:
+- `/SILENT` - Silent with progress dialog
+- `/VERYSILENT` - Completely silent (recommended for automation)
+- `/NORESTART` - Prevents automatic restart
+- `/SUPPRESSMSGBOXES` - Suppresses message boxes  
+- `/DIR="path"` - Custom installation directory
+
+**Code Signing for Microsoft Store**: See [`rpmbuild/SOURCES/CODE_SIGNING_GUIDE.md`](rpmbuild/SOURCES/CODE_SIGNING_GUIDE.md) for comprehensive code signing setup to meet Microsoft Store Policy 10.2.9 requirements.
 
 #### Method 2: Source Installation
 ```bash
