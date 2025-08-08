@@ -17,6 +17,13 @@ finish-args:
   - --filesystem=xdg-download:rw
 
 modules:
+  - name: imagemagick
+    buildsystem: simple
+    build-commands:
+      - echo "ImageMagick for icon resizing"
+    cleanup:
+      - "*"
+      
   - name: logviewer
     buildsystem: simple
     build-commands:
@@ -30,12 +37,21 @@ modules:
       # Install configuration and supporting files
       - install -Dm644 rpmbuild/SOURCES/config.yml ${FLATPAK_DEST}/share/logviewer/config.yml
       
-      # Install icon to proper location for AppStream validation
-      - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/com.michettetech.LogViewer.png
-      # Install icon in multiple sizes for better AppStream compatibility
-      - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/48x48/apps/com.michettetech.LogViewer.png
-      - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/64x64/apps/com.michettetech.LogViewer.png
-      - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/128x128/apps/com.michettetech.LogViewer.png
+      # Create properly sized icons from the source icon
+      - mkdir -p ${FLATPAK_DEST}/share/icons/hicolor/{32x32,48x48,64x64,128x128,256x256}/apps
+      
+      # Check original icon size
+      - identify rpmbuild/SOURCES/smallicon.png || echo "Cannot identify icon"
+      
+      # Resize icon to proper sizes using Python PIL
+      - python3 -c "
+        from PIL import Image;
+        img = Image.open('rpmbuild/SOURCES/smallicon.png');
+        print(f'Original icon size: {img.size}');
+        sizes = [(32, 32), (48, 48), (64, 64), (128, 128), (256, 256)];
+        dest_base = '${FLATPAK_DEST}/share/icons/hicolor';
+        [img.resize(size, Image.Resampling.LANCZOS).save(f'{dest_base}/{size[0]}x{size[1]}/apps/com.michettetech.LogViewer.png', 'PNG') or print(f'Created icon: {size[0]}x{size[1]}') for size in sizes]
+        "
       
       # Install desktop file
       - install -Dm644 com.michettetech.LogViewer.desktop ${FLATPAK_DEST}/share/applications/com.michettetech.LogViewer.desktop
@@ -49,10 +65,13 @@ modules:
       # Create icon cache index for AppStream validation
       - touch ${FLATPAK_DEST}/share/icons/hicolor/icon-theme.cache || echo "Icon cache creation failed"
       
-      # Debug: Verify icon installation
-      - ls -la ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/ || echo "Icon directory not found"
-      - ls -la ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/com.michettetech.LogViewer.png || echo "Icon file not installed"
+      # Debug: Verify icon installation and sizes
       - ls -la ${FLATPAK_DEST}/share/icons/hicolor/*/apps/com.michettetech.LogViewer.png || echo "No icons found in any size"
+      - python3 -c "
+        from PIL import Image; import glob;
+        icon_files = glob.glob('${FLATPAK_DEST}/share/icons/hicolor/*/apps/com.michettetech.LogViewer.png');
+        [print(f'{icon_file}: {Image.open(icon_file).size[0]}x{Image.open(icon_file).size[1]} pixels') for icon_file in icon_files]
+        " || echo "Could not verify icon sizes"
     sources:
       - type: dir
         path: ./

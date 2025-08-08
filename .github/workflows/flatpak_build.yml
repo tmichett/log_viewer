@@ -27,7 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y flatpak flatpak-builder python3-pip
+        sudo apt install -y flatpak flatpak-builder python3-pip python3-pil
         
     - name: Install Python dependencies and build executable
       run: |
