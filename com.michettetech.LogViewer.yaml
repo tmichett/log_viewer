@@ -32,6 +32,10 @@ modules:
       
       # Install icon to proper location for AppStream validation
       - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/com.michettetech.LogViewer.png
+      # Install icon in multiple sizes for better AppStream compatibility
+      - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/48x48/apps/com.michettetech.LogViewer.png
+      - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/64x64/apps/com.michettetech.LogViewer.png
+      - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/128x128/apps/com.michettetech.LogViewer.png
       
       # Install desktop file
       - install -Dm644 com.michettetech.LogViewer.desktop ${FLATPAK_DEST}/share/applications/com.michettetech.LogViewer.desktop
@@ -42,9 +46,13 @@ modules:
       # Install documentation
       - install -Dm644 README.md ${FLATPAK_DEST}/share/doc/logviewer/README.md
       
+      # Create icon cache index for AppStream validation
+      - touch ${FLATPAK_DEST}/share/icons/hicolor/icon-theme.cache || echo "Icon cache creation failed"
+      
       # Debug: Verify icon installation
       - ls -la ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/ || echo "Icon directory not found"
       - ls -la ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/com.michettetech.LogViewer.png || echo "Icon file not installed"
+      - ls -la ${FLATPAK_DEST}/share/icons/hicolor/*/apps/com.michettetech.LogViewer.png || echo "No icons found in any size"
     sources:
       - type: dir
         path: ./
