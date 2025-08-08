@@ -2,14 +2,19 @@ name: Build RPM Package
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       tag:
         description: 'Tag to build (e.g., v3.1.0)'
-        required: true
-        default: 'v3.1.0'
+        required: false
+        default: ''
 
 jobs:
   build-rpm:
@@ -28,22 +33,36 @@ jobs:
       run: |
         pip3 install PyInstaller PyQt6 PyYAML Pillow
         
-    - name: Extract version from tag
+    - name: Extract version from Build_Version file
       id: get_version
       run: |
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          VERSION="${{ github.event.inputs.tag }}"
-        else
-          VERSION="${GITHUB_REF#refs/tags/}"
-        fi
-        VERSION_NUMBER=${VERSION#v}
-        echo "version=$VERSION_NUMBER" >> $GITHUB_OUTPUT
-        echo "tag=$VERSION" >> $GITHUB_OUTPUT
-        echo "Building version: $VERSION_NUMBER"
+        cd rpmbuild/SOURCES
+        VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
         
-    - name: Update Build_Version file
+        # Determine if this is a tag build
+        if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "is_tag_build=true" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+          TAG_NAME="${{ github.event.inputs.tag }}"
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "is_tag_build=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_tag_build=false" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "Building version: $VERSION"
+        
+    - name: Display build information
       run: |
-        echo "VERSION=${{ steps.get_version.outputs.version }}" > rpmbuild/SOURCES/Build_Version
+        echo "Building RPM package..."
+        echo "Version: ${{ steps.get_version.outputs.version }}"
+        echo "Is tag build: ${{ steps.get_version.outputs.is_tag_build }}"
+        if [ "${{ steps.get_version.outputs.is_tag_build }}" = "true" ]; then
+          echo "Tag: ${{ steps.get_version.outputs.tag }}"
+        fi
         
     - name: Update RPM version
       run: |
@@ -81,9 +100,10 @@ jobs:
         retention-days: 30
         
     - name: Upload to release (if tag push)
-      if: startsWith(github.ref, 'refs/tags/')
+      if: steps.get_version.outputs.is_tag_build == 'true'
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ steps.get_version.outputs.tag }}
         files: LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
         draft: true
       env:
