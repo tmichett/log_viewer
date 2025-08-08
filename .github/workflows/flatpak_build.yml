@@ -29,14 +29,22 @@ jobs:
         sudo apt update
         sudo apt install -y flatpak flatpak-builder
         
-    - name: Add Flathub repository
+    - name: Setup Flatpak and Flathub
       run: |
+        # Add Flathub repository system-wide (for flatpak-builder)
         sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
         
-    - name: Install required Flatpak runtime and SDK
-      run: |
+        # Verify the remote was added
+        echo "System remotes:"
+        flatpak remotes -v
+        
+        # Install required runtime and SDK system-wide
         sudo flatpak install -y flathub org.freedesktop.Platform//23.08
         sudo flatpak install -y flathub org.freedesktop.Sdk//23.08
+        
+        # Verify installations
+        echo "Installed runtimes:"
+        flatpak list --runtime
         
     - name: Extract version from Build_Version file
       id: get_version
@@ -75,11 +83,27 @@ jobs:
         
     - name: Build Flatpak package
       run: |
-        flatpak-builder --user --install-deps-from=flathub --repo=flatpak-repo flatpak-build com.michettetech.LogViewer.yaml
+        # Show environment info for debugging
+        echo "Working directory: $(pwd)"
+        echo "Flatpak version: $(flatpak --version)"
+        echo "Available system remotes:"
+        flatpak remotes -v
+        echo "Available runtimes:"
+        flatpak list --runtime
+        
+        # Verify manifest file exists
+        ls -la com.michettetech.LogViewer.yaml
+        
+        # Build the Flatpak package (using system remotes)
+        flatpak-builder --install-deps-from=flathub --repo=flatpak-repo --force-clean flatpak-build com.michettetech.LogViewer.yaml
         
     - name: Create Flatpak bundle
       run: |
+        # Create the bundle
         flatpak build-bundle flatpak-repo LogViewer-${{ steps.get_version.outputs.version }}.flatpak com.michettetech.LogViewer
+        
+        # Set proper ownership (GitHub Actions runs as root in some contexts)
+        sudo chown $USER:$USER LogViewer-${{ steps.get_version.outputs.version }}.flatpak || true
         
     - name: Verify Flatpak bundle
       run: |

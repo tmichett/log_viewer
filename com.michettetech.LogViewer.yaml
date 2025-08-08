@@ -15,73 +15,26 @@ finish-args:
   - --filesystem=xdg-documents:rw
   - --filesystem=xdg-desktop:rw
   - --filesystem=xdg-download:rw
+  - --share=network
 
 modules:
-  - name: python3-pip
+  - name: python3-dependencies
     buildsystem: simple
     build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} --no-build-isolation pip
-    sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/94/59/6638090c25e9bc4ce0c42817b5a234e183872006a0702cab3fb50c15b7c42/pip-24.0-py3-none-any.whl
-        sha256: ba0d021a166865d2265246961bec0152ff124de910c5cc39f1156ce3fa7c69dc
-
-  - name: python3-pyyaml
-    buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} --no-build-isolation .
-    sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/cd/e5/af35f7ea75cf72f2cd079c95ee16797de7cd71f29ea7c68ae5ce7be1eda11/PyYAML-6.0.1.tar.gz
-        sha256: bfdf460b1736c775f2ba9f6a92bca30bc2095067b8a9d77876d1fad6cc3b4a43
-
-  - name: python3-pillow
-    buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} --no-build-isolation .
-    sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/ef/43/c50c17c5f7d438e836c169e343695534c38c77f60e7c90389bd77981bc21/pillow-10.3.0.tar.gz
-        sha256: 9d2455fbf44c914840c793e89aa82d0e1763a14253a000743719ae5946814b2d
-
-  - name: python3-pyqt6
-    buildsystem: simple
-    build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} --no-build-isolation PyQt6 PyQt6-Qt6 PyQt6-sip
-    sources:
-      - type: file
-        url: https://files.pythonhosted.org/packages/76/ac/1d97e8f4c088e769cfcb7c4aa27217dd5d9b3a4bf4ad86a19b5cfff3169d/PyQt6-6.7.0.tar.gz
-        sha256: fca0c2a69627b3e9c1e20e96857b75fe46bdf0ae2550a5c6e6b0b87e96eeaa42
-      - type: file
-        url: https://files.pythonhosted.org/packages/30/ca/5f17ad31973f7a1bf76fa20a6b4e2cba72bdc01e1f5577ade37ae67e8a4a8/PyQt6_Qt6-6.7.0-py3-none-linux_x86_64.whl
-        sha256: 14ade1f6c6e9d3d784bc7200fa4284b3b5b0a2b8db0d70d7b73e77de3b37b7d1
-      - type: file
-        url: https://files.pythonhosted.org/packages/99/6a/0dc3e063eed2b54c44d64aae75d3ed6c6e0bcdbc5e9aeb2efb86c7ad46a9/PyQt6_sip-13.6.0.tar.gz
-        sha256: 2486e1588071943d4f6657ba09096dc9fffd2322ad2c30041e78ea3f037b5778
+      # Install dependencies using pip with internet access
+      - pip3 install --prefix=${FLATPAK_DEST} PyQt6>=6.4.0 PyYAML>=6.0 Pillow>=9.0.0
+    cleanup:
+      - /lib/python*/site-packages/pip*
 
   - name: logviewer
     buildsystem: simple
     build-commands:
-      - install -Dm755 log_viewer.py ${FLATPAK_DEST}/bin/log_viewer.py
-      - install -Dm644 config.yml ${FLATPAK_DEST}/share/logviewer/config.yml
-      - install -Dm644 smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/com.michettetech.LogViewer.png
+      - install -Dm755 rpmbuild/SOURCES/log_viewer.py ${FLATPAK_DEST}/bin/log_viewer.py
+      - install -Dm644 rpmbuild/SOURCES/config.yml ${FLATPAK_DEST}/share/logviewer/config.yml
+      - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/com.michettetech.LogViewer.png
       - install -Dm644 com.michettetech.LogViewer.desktop ${FLATPAK_DEST}/share/applications/com.michettetech.LogViewer.desktop
       - install -Dm644 com.michettetech.LogViewer.appdata.xml ${FLATPAK_DEST}/share/metainfo/com.michettetech.LogViewer.appdata.xml
       - install -Dm644 README.md ${FLATPAK_DEST}/share/doc/logviewer/README.md
     sources:
-      - type: file
-        path: rpmbuild/SOURCES/log_viewer.py
-      - type: file
-        path: rpmbuild/SOURCES/config.yml
-      - type: file
-        path: rpmbuild/SOURCES/smallicon.png
-      - type: file
-        path: com.michettetech.LogViewer.desktop
-      - type: file
-        path: com.michettetech.LogViewer.appdata.xml
-      - type: file
-        path: README.md
+      - type: dir
+        path: ./
