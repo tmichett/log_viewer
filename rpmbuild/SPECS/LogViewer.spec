@@ -29,12 +29,14 @@ rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/opt/LogViewer
 mkdir -p $RPM_BUILD_ROOT/usr/share/applications
 mkdir -p $RPM_BUILD_ROOT/usr/share/doc/LogViewer
+mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
 
 
 # Copy application files to the buildroot
 cp -p %{_sourcedir}/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
 cp -p %{_sourcedir}/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
 cp -p %{_sourcedir}/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p %{_sourcedir}/smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
 cp -p %{_sourcedir}/log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
 
 # Copy documentation
@@ -56,6 +58,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,root,root) /opt/LogViewer/log_viewer_start.sh
 %attr(0755,root,root) /usr/share/applications/LogViewer.desktop
 /usr/share/doc/LogViewer/README.md
+/usr/share/icons/hicolor/32x32/apps/LogViewer.png
 
 
 %changelog

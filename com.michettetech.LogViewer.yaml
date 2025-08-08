@@ -20,14 +20,31 @@ modules:
   - name: logviewer
     buildsystem: simple
     build-commands:
+      # Debug: Show what files are available
+      - ls -la rpmbuild/SOURCES/ || echo "rpmbuild/SOURCES not found"
+      - ls -la rpmbuild/SOURCES/dist/ || echo "dist directory not found"
+      
       # Install the pre-built executable (created by GitHub Actions)
       - install -Dm755 rpmbuild/SOURCES/dist/log_viewer ${FLATPAK_DEST}/bin/log_viewer
+      
       # Install configuration and supporting files
       - install -Dm644 rpmbuild/SOURCES/config.yml ${FLATPAK_DEST}/share/logviewer/config.yml
+      
+      # Install icon to proper location for AppStream validation
       - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/com.michettetech.LogViewer.png
+      
+      # Install desktop file
       - install -Dm644 com.michettetech.LogViewer.desktop ${FLATPAK_DEST}/share/applications/com.michettetech.LogViewer.desktop
+      
+      # Install AppStream metadata
       - install -Dm644 com.michettetech.LogViewer.appdata.xml ${FLATPAK_DEST}/share/metainfo/com.michettetech.LogViewer.appdata.xml
+      
+      # Install documentation
       - install -Dm644 README.md ${FLATPAK_DEST}/share/doc/logviewer/README.md
+      
+      # Debug: Verify icon installation
+      - ls -la ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/ || echo "Icon directory not found"
+      - ls -la ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/com.michettetech.LogViewer.png || echo "Icon file not installed"
     sources:
       - type: dir
         path: ./

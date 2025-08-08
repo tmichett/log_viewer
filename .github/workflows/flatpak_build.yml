@@ -108,6 +108,13 @@ jobs:
         # Verify manifest file exists
         ls -la com.michettetech.LogViewer.yaml
         
+        # Verify source files exist
+        echo "Checking required source files:"
+        ls -la rpmbuild/SOURCES/dist/log_viewer || echo "PyInstaller executable not found"
+        ls -la rpmbuild/SOURCES/smallicon.png || echo "Icon file not found"
+        ls -la com.michettetech.LogViewer.desktop || echo "Desktop file not found"
+        ls -la com.michettetech.LogViewer.appdata.xml || echo "AppData file not found"
+        
         # Build the Flatpak package (using system remotes)
         flatpak-builder --install-deps-from=flathub --repo=flatpak-repo --force-clean flatpak-build com.michettetech.LogViewer.yaml
         

@@ -19,6 +19,7 @@ on:
 jobs:
   build-rpm:
     runs-on: ubuntu-latest
+    container: fedora:latest
     
     steps:
     - name: Checkout code
@@ -26,11 +27,12 @@ jobs:
       
     - name: Install RPM build tools
       run: |
-        sudo apt update
-        sudo apt install -y rpm rpmbuild rpmdevtools python3-pip
+        dnf update -y
+        dnf install -y rpm-build rpmdevtools python3-pip git which findutils
         
     - name: Install Python dependencies
       run: |
+        dnf install -y python3-devel python3-pip
         pip3 install PyInstaller PyQt6 PyYAML Pillow
         
     - name: Extract version from Build_Version file
@@ -64,20 +66,25 @@ jobs:
           echo "Tag: ${{ steps.get_version.outputs.tag }}"
         fi
         
-    - name: Update RPM version
+    - name: Update RPM version and build PyInstaller executable
       run: |
         cd rpmbuild/SOURCES
         chmod +x update_rpm_version.sh
         ./update_rpm_version.sh
         
-    - name: Build PyInstaller executable
-      run: |
-        cd rpmbuild/SOURCES
+        # Build the PyInstaller executable for RPM
         pyinstaller log_viewer.spec
         
-    - name: Prepare RPM build environment
+    - name: Setup RPM build environment
       run: |
-        cp -r rpmbuild ~/
+        # Create RPM build directories
+        mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+        
+        # Copy spec file
+        cp rpmbuild/SPECS/LogViewer.spec ~/rpmbuild/SPECS/
+        
+        # Copy source files
+        cp -r rpmbuild/SOURCES/* ~/rpmbuild/SOURCES/
         
     - name: Build RPM package
       run: |

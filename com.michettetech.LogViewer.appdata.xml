@@ -29,6 +29,8 @@
   
   <launchable type="desktop-id">com.michettetech.LogViewer.desktop</launchable>
   
+  <icon type="cached">com.michettetech.LogViewer</icon>
+  
   <screenshots>
     <screenshot type="default">
       <!-- Note: You would need to add actual screenshots -->
