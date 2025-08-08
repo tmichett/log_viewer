@@ -83,6 +83,7 @@ jobs:
           download_latest_artifacts "Build macOS App - Dual Architecture"
           download_latest_artifacts "Build Windows App"
           download_latest_artifacts "Build RPM"
+          download_latest_artifacts "Build Flatpak Package"
           
           echo "All downloaded artifacts:"
           find release-artifacts -type f -ls || echo "No artifacts found"
@@ -104,6 +105,9 @@ jobs:
           
           # Look for RPM files
           find release-artifacts -name "*.rpm" -exec cp {} final-artifacts/ \;
+          
+          # Look for Flatpak files
+          find release-artifacts -name "*.flatpak" -exec cp {} final-artifacts/ \;
           
           echo "Final release artifacts:"
           ls -la final-artifacts/ || echo "No final artifacts prepared"
@@ -132,8 +136,9 @@ jobs:
             - **Installer**: `LogViewer-${{ steps.version.outputs.VERSION }}-Setup.exe` (Recommended)
             - **Portable**: `LogViewer-${{ steps.version.outputs.VERSION }}.exe` (No installation required)
             
-            ### 🐧 Linux (Red Hat/Fedora)
-            - **RPM Package**: `LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm`
+            ### 🐧 Linux
+            - **RPM Package (Red Hat/Fedora)**: `LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm`
+            - **Flatpak Package (Universal Linux)**: `LogViewer-${{ steps.version.outputs.VERSION }}.flatpak`
             
             ## 🚀 Installation
             
@@ -147,8 +152,16 @@ jobs:
             2. Download the portable exe and run directly
             
             ### Linux
+            
+            #### RPM (Red Hat/Fedora):
             ```bash
             sudo rpm -ivh LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm
+            ```
+            
+            #### Flatpak (Universal Linux):
+            ```bash
+            flatpak install LogViewer-${{ steps.version.outputs.VERSION }}.flatpak
+            flatpak run com.michettetech.LogViewer
             ```
             
             ## ✨ Features
@@ -162,7 +175,8 @@ jobs:
             ## 📋 System Requirements
             - **macOS**: 10.14 (Mojave) or later
             - **Windows**: Windows 10 or later
-            - **Linux**: Red Hat/Fedora-based distributions
+            - **Linux RPM**: Red Hat/Fedora-based distributions
+            - **Linux Flatpak**: Any Linux distribution with Flatpak support
             
             ## 🔧 Technical Details
             - Built with Python 3.11+ and PyQt6

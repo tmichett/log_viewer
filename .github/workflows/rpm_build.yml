@@ -1,51 +1,90 @@
-# Workflow name
-name: Build RPM
+name: Build RPM Package
 
-
-# Controls when the workflow will run
-# Workflow will run on a push event.
-# Workflow won't be triggered to re-run based on the Gitauth token push
-#on: 
-  # This is a reusable workflow
-#  workflow_dispatch:
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g., v3.1.0)'
+        required: true
+        default: 'v3.1.0'
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-
-  # This workflow contains a single job called "build"
-  build:
+  build-rpm:
     runs-on: ubuntu-latest
-    environment: deploy
+    
     steps:
-
-      # In this job, all steps begin with a name
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Read version from Build_Version
-        id: version
-        run: |
-          cd rpmbuild/SOURCES
-          VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building RPM version: $VERSION"
-
-      - name: Create Python Compiled application
-        run: bash rpmbuild/SOURCES/Build_App.sh 
-
-      - name: Create and Build RPM
-        run: bash ./RPM_Build_Clean.sh && ./RPM_Build.sh
-
-      - name: Upload RPM Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: LogViewer-RPM
-          path: /home/runner/rpmbuild/RPMS/x86_64/*.rpm
-          retention-days: 30
-
-      # Note: Release creation is handled by create_comprehensive_release.yml
-      # This workflow only creates and uploads artifacts
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install RPM build tools
+      run: |
+        sudo apt update
+        sudo apt install -y rpm rpmbuild rpmdevtools python3-pip
+        
+    - name: Install Python dependencies
+      run: |
+        pip3 install PyInstaller PyQt6 PyYAML Pillow
+        
+    - name: Extract version from tag
+      id: get_version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.tag }}"
+        else
+          VERSION="${GITHUB_REF#refs/tags/}"
+        fi
+        VERSION_NUMBER=${VERSION#v}
+        echo "version=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+        echo "tag=$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION_NUMBER"
+        
+    - name: Update Build_Version file
+      run: |
+        echo "VERSION=${{ steps.get_version.outputs.version }}" > rpmbuild/SOURCES/Build_Version
+        
+    - name: Update RPM version
+      run: |
+        cd rpmbuild/SOURCES
+        chmod +x update_rpm_version.sh
+        ./update_rpm_version.sh
+        
+    - name: Build PyInstaller executable
+      run: |
+        cd rpmbuild/SOURCES
+        pyinstaller log_viewer.spec
+        
+    - name: Prepare RPM build environment
+      run: |
+        cp -r rpmbuild ~/
+        
+    - name: Build RPM package
+      run: |
+        rpmbuild -ba ~/rpmbuild/SPECS/LogViewer.spec
+        
+    - name: Find and copy RPM file
+      run: |
+        find ~/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \;
+        ls -la *.rpm
+        
+    - name: Rename RPM file
+      run: |
+        mv LogViewer-*.rpm LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
+        
+    - name: Upload RPM artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: rpm-package
+        path: LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
+        retention-days: 30
+        
+    - name: Upload to release (if tag push)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
+        draft: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

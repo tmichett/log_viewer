@@ -22,6 +22,9 @@ When a version tag is pushed, these workflows automatically trigger:
 3. **`rpm_build.yml`** - Builds Linux RPM package
    - RPM Package: `LogViewer-{VERSION}-0.rpm`
 
+4. **`flatpak_build.yml`** - Builds Linux Flatpak package
+   - Flatpak Package: `LogViewer-{VERSION}.flatpak`
+
 ### Release Creation Workflows
 
 #### Automated Release (Recommended)
@@ -64,13 +67,13 @@ git push origin v3.2.0
 
 When you push a tag, the automated workflow handles everything:
 
-1. **Platform Builds Trigger**: All three build workflows start automatically
+1. **Platform Builds Trigger**: All four build workflows start automatically
 2. **Automated Waiting**: The release workflow waits for builds to complete
 3. **Artifact Collection**: Downloads all artifacts using GitHub CLI
 4. **Draft Release Creation**: Creates a comprehensive draft release with:
    - Professional release description
    - Platform-specific installation instructions
-   - All 5 artifacts automatically attached
+   - All 6 artifacts automatically attached
 
 **No manual intervention required!** Just monitor the **Actions** tab for completion.
 
@@ -78,7 +81,7 @@ When you push a tag, the automated workflow handles everything:
 
 If you prefer manual control or the automated process fails:
 
-1. **Wait for Platform Builds**: Monitor the **Actions** tab until all builds complete
+1. **Wait for Platform Builds**: Monitor the **Actions** tab until all four builds complete
 2. **Trigger Manual Release**:
    - Go to **Actions** → **Manual Comprehensive Release**
    - Click **Run workflow**
@@ -92,7 +95,7 @@ If you prefer manual control or the automated process fails:
 ### 5. Review and Publish
 
 1. **Review the release**:
-   - Check that all 5 files are attached
+   - Check that all 6 files are attached
    - Verify the release description is accurate
    - Confirm version numbers are correct
 
@@ -102,7 +105,7 @@ If you prefer manual control or the automated process fails:
 
 ## Release Artifacts Summary
 
-Each release includes exactly **5 artifacts**:
+Each release includes exactly **6 artifacts**:
 
 | Platform | File | Description |
 |----------|------|-------------|
@@ -111,6 +114,7 @@ Each release includes exactly **5 artifacts**:
 | Windows (Installer) | `LogViewer-{VERSION}-Setup.exe` | Windows installer package |
 | Windows (Portable) | `LogViewer-{VERSION}.exe` | Standalone Windows executable |
 | Linux (RPM) | `LogViewer-{VERSION}-0.rpm` | Red Hat/Fedora package |
+| Linux (Flatpak) | `LogViewer-{VERSION}.flatpak` | Universal Linux package |
 
 ## Version Management
 
@@ -184,14 +188,14 @@ If artifacts are missing from a workflow:
 If there are issues with the release:
 1. Edit the draft release to fix any problems
 2. Re-upload artifacts if needed
-3. Ensure all 5 files are present before publishing
+3. Ensure all 6 files are present before publishing
 
 ## Best Practices
 
 1. **Test Before Release**: Always test builds locally before creating a release
 2. **Version Consistency**: Ensure the version in `Build_Version` matches the tag
 3. **Complete Builds**: Wait for all platform builds to complete before creating the release
-4. **Artifact Verification**: Verify all 5 artifacts are present and correctly named
+4. **Artifact Verification**: Verify all 6 artifacts are present and correctly named
 5. **Release Notes**: Review the auto-generated release description for accuracy
 
 ## Support

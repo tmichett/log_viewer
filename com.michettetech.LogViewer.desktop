@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Log Viewer
+GenericName=Log and Text File Viewer
+Comment=View and search log, output, and text files with ANSI color support
+Exec=log_viewer.py %F
+Icon=com.michettetech.LogViewer
+Terminal=false
+StartupNotify=true
+Categories=System;Utility;TextEditor;Development;
+MimeType=text/plain;text/x-log;application/x-log;
+Keywords=log;viewer;search;text;file;ANSI;highlight;
+
+# Localized names
+Name[en_US]=Log Viewer
+GenericName[en_US]=Log and Text File Viewer
+Comment[en_US]=View and search log, output, and text files with ANSI color support

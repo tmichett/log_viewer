@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.michettetech.LogViewer</id>
+  
+  <name>Log Viewer</name>
+  <summary>A powerful log file viewer with ANSI color support and configurable highlighting</summary>
+  
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  
+  <description>
+    <p>
+      Log Viewer is a GUI application for viewing and searching through log files. 
+      It supports ANSI color codes and provides features like text search, 
+      font size adjustment, and configurable term highlighting with custom colors.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Fast search with highlighting</li>
+      <li>Supports .log, .out, .txt files</li>
+      <li>Configurable color highlighting for specific terms</li>
+      <li>Dark theme interface optimized for log reading</li>
+      <li>Handles large files (multi-GB) efficiently</li>
+      <li>ANSI color code support for colored terminal output</li>
+      <li>Keyboard shortcuts for quick navigation</li>
+      <li>Font size adjustment for better readability</li>
+    </ul>
+  </description>
+  
+  <launchable type="desktop-id">com.michettetech.LogViewer.desktop</launchable>
+  
+  <screenshots>
+    <screenshot type="default">
+      <!-- Note: You would need to add actual screenshots -->
+      <caption>Main interface showing log file with syntax highlighting</caption>
+    </screenshot>
+  </screenshots>
+  
+  <url type="homepage">https://michettetech.com</url>
+  
+  <provides>
+    <binary>log_viewer.py</binary>
+  </provides>
+  
+  <developer_name>Michette Technologies</developer_name>
+  
+  <categories>
+    <category>System</category>
+    <category>Utility</category>
+    <category>TextEditor</category>
+    <category>Development</category>
+  </categories>
+  
+  <keywords>
+    <keyword>log</keyword>
+    <keyword>viewer</keyword>
+    <keyword>search</keyword>
+    <keyword>text</keyword>
+    <keyword>file</keyword>
+    <keyword>ANSI</keyword>
+    <keyword>highlight</keyword>
+    <keyword>developer</keyword>
+    <keyword>system</keyword>
+  </keywords>
+  
+  <releases>
+    <release version="3.1.0" date="2024-12-15">
+      <description>
+        <p>Enhanced search functionality and improved user interface:</p>
+        <ul>
+          <li>Added bidirectional search navigation (Find Next/Find Previous)</li>
+          <li>Improved search highlighting with proper cleanup</li>
+          <li>Added comprehensive help system with integrated Help menu</li>
+          <li>Implemented keyboard shortcuts (Ctrl+F, F1, F3, Shift+F3, Escape)</li>
+          <li>Enhanced PyQt version compatibility</li>
+          <li>Added focus management for search functionality</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+  
+  <content_rating type="oars-1.1" />
+  
+</component>
