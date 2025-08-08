@@ -45,12 +45,16 @@ modules:
       
       # Resize icon to proper sizes using Python PIL
       - python3 -c "
-        from PIL import Image;
-        img = Image.open('rpmbuild/SOURCES/smallicon.png');
-        print(f'Original icon size: {img.size}');
-        sizes = [(32, 32), (48, 48), (64, 64), (128, 128), (256, 256)];
-        dest_base = '${FLATPAK_DEST}/share/icons/hicolor';
-        [img.resize(size, Image.Resampling.LANCZOS).save(f'{dest_base}/{size[0]}x{size[1]}/apps/com.michettetech.LogViewer.png', 'PNG') or print(f'Created icon: {size[0]}x{size[1]}') for size in sizes]
+        from PIL import Image
+        img = Image.open('rpmbuild/SOURCES/smallicon.png')
+        print('Original icon size:', img.size)
+        sizes = [(32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+        dest_base = '$FLATPAK_DEST/share/icons/hicolor'
+        for size in sizes:
+            resized = img.resize(size, Image.Resampling.LANCZOS)
+            dest_path = dest_base + '/' + str(size[0]) + 'x' + str(size[1]) + '/apps/com.michettetech.LogViewer.png'
+            resized.save(dest_path, 'PNG')
+            print('Created icon:', str(size[0]) + 'x' + str(size[1]))
         "
       
       # Install desktop file
@@ -68,9 +72,16 @@ modules:
       # Debug: Verify icon installation and sizes
       - ls -la ${FLATPAK_DEST}/share/icons/hicolor/*/apps/com.michettetech.LogViewer.png || echo "No icons found in any size"
       - python3 -c "
-        from PIL import Image; import glob;
-        icon_files = glob.glob('${FLATPAK_DEST}/share/icons/hicolor/*/apps/com.michettetech.LogViewer.png');
-        [print(f'{icon_file}: {Image.open(icon_file).size[0]}x{Image.open(icon_file).size[1]} pixels') for icon_file in icon_files]
+        from PIL import Image
+        import glob
+        import os
+        icon_files = glob.glob('$FLATPAK_DEST/share/icons/hicolor/*/apps/com.michettetech.LogViewer.png')
+        for icon_file in icon_files:
+            try:
+                img = Image.open(icon_file)
+                print(icon_file + ': ' + str(img.size[0]) + 'x' + str(img.size[1]) + ' pixels')
+            except Exception as e:
+                print('Error checking ' + icon_file + ': ' + str(e))
         " || echo "Could not verify icon sizes"
     sources:
       - type: dir
