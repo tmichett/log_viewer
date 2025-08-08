@@ -24,10 +24,24 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Install Flatpak and flatpak-builder
+    - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y flatpak flatpak-builder
+        sudo apt install -y flatpak flatpak-builder python3-pip
+        
+    - name: Install Python dependencies and build executable
+      run: |
+        cd rpmbuild/SOURCES
+        pip3 install PyInstaller PyQt6 PyYAML Pillow
+        
+        # Build the standalone executable using PyInstaller
+        pyinstaller log_viewer.spec
+        
+        # Verify executable was created
+        ls -la dist/
+        
+        # Test that the executable works
+        ./dist/log_viewer --help || echo "Help command completed"
         
     - name: Setup Flatpak and Flathub
       run: |

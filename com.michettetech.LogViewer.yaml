@@ -2,7 +2,7 @@ app-id: com.michettetech.LogViewer
 runtime: org.freedesktop.Platform
 runtime-version: '23.08'
 sdk: org.freedesktop.Sdk
-command: log_viewer.py
+command: log_viewer
 
 finish-args:
   - --share=ipc
@@ -15,21 +15,14 @@ finish-args:
   - --filesystem=xdg-documents:rw
   - --filesystem=xdg-desktop:rw
   - --filesystem=xdg-download:rw
-  - --share=network
 
 modules:
-  - name: python3-dependencies
-    buildsystem: simple
-    build-commands:
-      # Install dependencies using pip with internet access
-      - pip3 install --prefix=${FLATPAK_DEST} PyQt6>=6.4.0 PyYAML>=6.0 Pillow>=9.0.0
-    cleanup:
-      - /lib/python*/site-packages/pip*
-
   - name: logviewer
     buildsystem: simple
     build-commands:
-      - install -Dm755 rpmbuild/SOURCES/log_viewer.py ${FLATPAK_DEST}/bin/log_viewer.py
+      # Install the pre-built executable (created by GitHub Actions)
+      - install -Dm755 rpmbuild/SOURCES/dist/log_viewer ${FLATPAK_DEST}/bin/log_viewer
+      # Install configuration and supporting files
       - install -Dm644 rpmbuild/SOURCES/config.yml ${FLATPAK_DEST}/share/logviewer/config.yml
       - install -Dm644 rpmbuild/SOURCES/smallicon.png ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/com.michettetech.LogViewer.png
       - install -Dm644 com.michettetech.LogViewer.desktop ${FLATPAK_DEST}/share/applications/com.michettetech.LogViewer.desktop
