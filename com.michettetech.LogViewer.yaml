@@ -1,0 +1,63 @@
+app-id: com.michettetech.LogViewer
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: log_viewer_wrapper.sh
+
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+  - --filesystem=home:ro
+  - --filesystem=/tmp:rw
+  - --filesystem=/var/log:ro
+  - --filesystem=xdg-documents:rw
+  - --filesystem=xdg-desktop:rw
+  - --filesystem=xdg-download:rw
+  - --filesystem=/usr/share/icons:ro
+  - --filesystem=/usr/share/pixmaps:ro
+  - --env=QT_QPA_PLATFORM=xcb
+  - --env=QT_X11_NO_MITSHM=1
+  - --env=QT_DEBUG_PLUGINS=1
+
+modules:
+  - name: logviewer
+    buildsystem: simple
+    build-commands:
+      # Debug: Show what files are available
+      - ls -la rpmbuild/SOURCES/ || echo "rpmbuild/SOURCES not found"
+      - ls -la rpmbuild/SOURCES/dist/ || echo "dist directory not found"
+      
+      # Install the pre-built executable (created by GitHub Actions)
+      - install -Dm755 rpmbuild/SOURCES/dist/log_viewer ${FLATPAK_DEST}/bin/log_viewer
+      
+      # Install wrapper script for Qt environment setup
+      - install -Dm755 log_viewer_wrapper.sh ${FLATPAK_DEST}/bin/log_viewer_wrapper.sh
+      
+      # Install configuration and supporting files
+      - install -Dm644 rpmbuild/SOURCES/config.yml ${FLATPAK_DEST}/share/logviewer/config.yml
+      
+      # Create properly sized icons using shell script
+      - chmod +x resize_icons.sh
+      - ./resize_icons.sh
+      
+      # Install desktop file
+      - install -Dm644 com.michettetech.LogViewer.desktop ${FLATPAK_DEST}/share/applications/com.michettetech.LogViewer.desktop
+      
+      # Install AppStream metadata
+      - install -Dm644 com.michettetech.LogViewer.appdata.xml ${FLATPAK_DEST}/share/metainfo/com.michettetech.LogViewer.appdata.xml
+      
+      # Install documentation
+      - install -Dm644 README.md ${FLATPAK_DEST}/share/doc/logviewer/README.md
+      
+      # Create icon cache index for AppStream validation
+      - touch ${FLATPAK_DEST}/share/icons/hicolor/icon-theme.cache || echo "Icon cache creation failed"
+      
+      # Debug: Verify icon installation and sizes
+      - ls -la ${FLATPAK_DEST}/share/icons/hicolor/*/apps/com.michettetech.LogViewer.png || echo "No icons found in any size"
+      - find ${FLATPAK_DEST}/share/icons/hicolor -name "com.michettetech.LogViewer.png" -exec file {} \; || echo "Could not verify icon files"
+    sources:
+      - type: dir
+        path: ./

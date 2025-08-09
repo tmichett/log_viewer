@@ -4,7 +4,7 @@ name: Automated Comprehensive Release
 
 on:
   workflow_run:
-    workflows: ["Build macOS App - Dual Architecture", "Build Windows App", "Build RPM"]
+    workflows: ["Build macOS App - Dual Architecture", "Build Windows App", "Build RPM", "Build Flatpak Package"]
     types:
       - completed
 
@@ -129,6 +129,7 @@ jobs:
           download_workflow_artifacts "Build macOS App - Dual Architecture" "2"
           download_workflow_artifacts "Build Windows App" "2" 
           download_workflow_artifacts "Build RPM" "1"
+          download_workflow_artifacts "Build Flatpak Package" "1"
           
           echo "All available artifacts downloaded:"
           find artifacts -type f -ls
@@ -156,8 +157,9 @@ jobs:
             - **Installer**: `LogViewer-${{ needs.check-all-builds.outputs.version }}-Setup.exe` (Recommended)
             - **Portable**: `LogViewer-${{ needs.check-all-builds.outputs.version }}.exe` (No installation required)
             
-            ### 🐧 Linux (Red Hat/Fedora)
-            - **RPM Package**: `LogViewer-${{ needs.check-all-builds.outputs.version }}-0.rpm`
+            ### 🐧 Linux
+            - **RPM Package (Red Hat/Fedora)**: `LogViewer-${{ needs.check-all-builds.outputs.version }}-0.rpm`
+            - **Flatpak Package (Universal Linux)**: `LogViewer-${{ needs.check-all-builds.outputs.version }}.flatpak`
             
             ## 🚀 Installation
             
@@ -171,8 +173,16 @@ jobs:
             2. Download the portable exe and run directly
             
             ### Linux
+            
+            #### RPM (Red Hat/Fedora):
             ```bash
             sudo rpm -ivh LogViewer-${{ needs.check-all-builds.outputs.version }}-0.rpm
+            ```
+            
+            #### Flatpak (Universal Linux):
+            ```bash
+            flatpak install LogViewer-${{ needs.check-all-builds.outputs.version }}.flatpak
+            flatpak run com.michettetech.LogViewer
             ```
             
             ## ✨ Features
@@ -186,7 +196,8 @@ jobs:
             ## 📋 System Requirements
             - **macOS**: 10.14 (Mojave) or later
             - **Windows**: Windows 10 or later
-            - **Linux**: Red Hat/Fedora-based distributions
+            - **Linux RPM**: Red Hat/Fedora-based distributions
+            - **Linux Flatpak**: Any Linux distribution with Flatpak support
             
             ## 🔧 Technical Details
             - Built with Python 3.11+ and PyQt6

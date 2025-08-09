@@ -1,0 +1,149 @@
+name: Build Flatpak Package
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g., v3.1.0)'
+        required: false
+        default: ''
+
+jobs:
+  build-flatpak:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y flatpak flatpak-builder python3-pip python3-pil
+        
+    - name: Install Python dependencies and build executable
+      run: |
+        cd rpmbuild/SOURCES
+        pip3 install PyInstaller PyQt6 PyYAML Pillow
+        
+        # Build the standalone executable using PyInstaller
+        pyinstaller log_viewer.spec
+        
+        # Verify executable was created
+        ls -la dist/
+        
+        # Test that the executable works
+        ./dist/log_viewer --help || echo "Help command completed"
+        
+    - name: Setup Flatpak and Flathub
+      run: |
+        # Add Flathub repository system-wide (for flatpak-builder)
+        sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+        
+        # Verify the remote was added
+        echo "System remotes:"
+        flatpak remotes -v
+        
+        # Install required runtime and SDK system-wide
+        sudo flatpak install -y flathub org.freedesktop.Platform//23.08
+        sudo flatpak install -y flathub org.freedesktop.Sdk//23.08
+        
+        # Verify installations
+        echo "Installed runtimes:"
+        flatpak list --runtime
+        
+    - name: Extract version from Build_Version file
+      id: get_version
+      run: |
+        cd rpmbuild/SOURCES
+        VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Determine if this is a tag build
+        if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "is_tag_build=true" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+          TAG_NAME="${{ github.event.inputs.tag }}"
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "is_tag_build=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_tag_build=false" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "Building version: $VERSION"
+        
+    - name: Display build information
+      run: |
+        echo "Building Flatpak package..."
+        echo "Version: ${{ steps.get_version.outputs.version }}"
+        echo "Is tag build: ${{ steps.get_version.outputs.is_tag_build }}"
+        if [ "${{ steps.get_version.outputs.is_tag_build }}" = "true" ]; then
+          echo "Tag: ${{ steps.get_version.outputs.tag }}"
+        fi
+        
+    - name: Prepare build environment
+      run: |
+        mkdir -p flatpak-build flatpak-repo
+        
+    - name: Build Flatpak package
+      run: |
+        # Show environment info for debugging
+        echo "Working directory: $(pwd)"
+        echo "Flatpak version: $(flatpak --version)"
+        echo "Available system remotes:"
+        flatpak remotes -v
+        echo "Available runtimes:"
+        flatpak list --runtime
+        
+        # Verify manifest file exists
+        ls -la com.michettetech.LogViewer.yaml
+        
+        # Verify source files exist
+        echo "Checking required source files:"
+        ls -la rpmbuild/SOURCES/dist/log_viewer || echo "PyInstaller executable not found"
+        ls -la rpmbuild/SOURCES/smallicon.png || echo "Icon file not found"
+        ls -la com.michettetech.LogViewer.desktop || echo "Desktop file not found"
+        ls -la com.michettetech.LogViewer.appdata.xml || echo "AppData file not found"
+        
+        # Build the Flatpak package (using system remotes)
+        flatpak-builder --install-deps-from=flathub --repo=flatpak-repo --force-clean flatpak-build com.michettetech.LogViewer.yaml
+        
+    - name: Create Flatpak bundle
+      run: |
+        # Create the bundle
+        flatpak build-bundle flatpak-repo LogViewer-${{ steps.get_version.outputs.version }}.flatpak com.michettetech.LogViewer
+        
+        # Set proper ownership (GitHub Actions runs as root in some contexts)
+        sudo chown $USER:$USER LogViewer-${{ steps.get_version.outputs.version }}.flatpak || true
+        
+    - name: Verify Flatpak bundle
+      run: |
+        ls -la LogViewer-${{ steps.get_version.outputs.version }}.flatpak
+        file LogViewer-${{ steps.get_version.outputs.version }}.flatpak
+        
+    - name: Upload Flatpak artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: flatpak-package
+        path: LogViewer-${{ steps.get_version.outputs.version }}.flatpak
+        retention-days: 30
+        
+    - name: Upload to release (if tag push)
+      if: steps.get_version.outputs.is_tag_build == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_version.outputs.tag }}
+        files: LogViewer-${{ steps.get_version.outputs.version }}.flatpak
+        draft: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
