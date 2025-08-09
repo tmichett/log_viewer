@@ -8,7 +8,7 @@ set -e
 FLATPAK_DEST=${FLATPAK_DEST:-/app}
 
 # Source and destination paths
-SOURCE_ICON="rpmbuild/SOURCES/smallicon.png"
+SOURCE_ICON="rpmbuild/SOURCES/smallicon-256.png"
 DEST_BASE="${FLATPAK_DEST}/share/icons/hicolor"
 
 # Check if source icon exists
