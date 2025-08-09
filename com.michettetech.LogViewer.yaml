@@ -37,25 +37,8 @@ modules:
       # Install configuration and supporting files
       - install -Dm644 rpmbuild/SOURCES/config.yml ${FLATPAK_DEST}/share/logviewer/config.yml
       
-      # Create properly sized icons from the source icon
-      - mkdir -p ${FLATPAK_DEST}/share/icons/hicolor/{32x32,48x48,64x64,128x128,256x256}/apps
-      
-      # Check original icon size
-      - identify rpmbuild/SOURCES/smallicon.png || echo "Cannot identify icon"
-      
-      # Resize icon to proper sizes using Python PIL
-      - python3 -c "
-        from PIL import Image
-        img = Image.open('rpmbuild/SOURCES/smallicon.png')
-        print('Original icon size:', img.size)
-        sizes = [(32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
-        dest_base = '$FLATPAK_DEST/share/icons/hicolor'
-        for size in sizes:
-            resized = img.resize(size, Image.Resampling.LANCZOS)
-            dest_path = dest_base + '/' + str(size[0]) + 'x' + str(size[1]) + '/apps/com.michettetech.LogViewer.png'
-            resized.save(dest_path, 'PNG')
-            print('Created icon:', str(size[0]) + 'x' + str(size[1]))
-        "
+      # Create properly sized icons using external script
+      - python3 resize_icons.py
       
       # Install desktop file
       - install -Dm644 com.michettetech.LogViewer.desktop ${FLATPAK_DEST}/share/applications/com.michettetech.LogViewer.desktop
@@ -71,18 +54,7 @@ modules:
       
       # Debug: Verify icon installation and sizes
       - ls -la ${FLATPAK_DEST}/share/icons/hicolor/*/apps/com.michettetech.LogViewer.png || echo "No icons found in any size"
-      - python3 -c "
-        from PIL import Image
-        import glob
-        import os
-        icon_files = glob.glob('$FLATPAK_DEST/share/icons/hicolor/*/apps/com.michettetech.LogViewer.png')
-        for icon_file in icon_files:
-            try:
-                img = Image.open(icon_file)
-                print(icon_file + ': ' + str(img.size[0]) + 'x' + str(img.size[1]) + ' pixels')
-            except Exception as e:
-                print('Error checking ' + icon_file + ': ' + str(e))
-        " || echo "Could not verify icon sizes"
+      - find ${FLATPAK_DEST}/share/icons/hicolor -name "com.michettetech.LogViewer.png" -exec file {} \; || echo "Could not verify icon files"
     sources:
       - type: dir
         path: ./
