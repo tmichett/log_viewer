@@ -17,13 +17,6 @@ finish-args:
   - --filesystem=xdg-download:rw
 
 modules:
-  - name: imagemagick
-    buildsystem: simple
-    build-commands:
-      - echo "ImageMagick for icon resizing"
-    cleanup:
-      - "*"
-      
   - name: logviewer
     buildsystem: simple
     build-commands:
@@ -37,8 +30,9 @@ modules:
       # Install configuration and supporting files
       - install -Dm644 rpmbuild/SOURCES/config.yml ${FLATPAK_DEST}/share/logviewer/config.yml
       
-      # Create properly sized icons using external script
-      - python3 resize_icons.py
+      # Create properly sized icons using shell script
+      - chmod +x resize_icons.sh
+      - ./resize_icons.sh
       
       # Install desktop file
       - install -Dm644 com.michettetech.LogViewer.desktop ${FLATPAK_DEST}/share/applications/com.michettetech.LogViewer.desktop
