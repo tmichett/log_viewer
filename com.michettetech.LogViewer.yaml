@@ -2,12 +2,13 @@ app-id: com.michettetech.LogViewer
 runtime: org.freedesktop.Platform
 runtime-version: '23.08'
 sdk: org.freedesktop.Sdk
-command: log_viewer
+command: log_viewer_wrapper.sh
 
 finish-args:
   - --share=ipc
-  - --socket=fallback-x11
+  - --socket=x11
   - --socket=wayland
+  - --socket=pulseaudio
   - --device=dri
   - --filesystem=home:ro
   - --filesystem=/tmp:rw
@@ -15,6 +16,11 @@ finish-args:
   - --filesystem=xdg-documents:rw
   - --filesystem=xdg-desktop:rw
   - --filesystem=xdg-download:rw
+  - --filesystem=/usr/share/icons:ro
+  - --filesystem=/usr/share/pixmaps:ro
+  - --env=QT_QPA_PLATFORM=xcb
+  - --env=QT_X11_NO_MITSHM=1
+  - --env=QT_DEBUG_PLUGINS=1
 
 modules:
   - name: logviewer
@@ -26,6 +32,9 @@ modules:
       
       # Install the pre-built executable (created by GitHub Actions)
       - install -Dm755 rpmbuild/SOURCES/dist/log_viewer ${FLATPAK_DEST}/bin/log_viewer
+      
+      # Install wrapper script for Qt environment setup
+      - install -Dm755 log_viewer_wrapper.sh ${FLATPAK_DEST}/bin/log_viewer_wrapper.sh
       
       # Install configuration and supporting files
       - install -Dm644 rpmbuild/SOURCES/config.yml ${FLATPAK_DEST}/share/logviewer/config.yml
