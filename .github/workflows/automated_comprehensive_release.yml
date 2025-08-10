@@ -4,7 +4,7 @@ name: Automated Comprehensive Release
 
 on:
   workflow_run:
-    workflows: ["Build macOS App - Dual Architecture", "Build Windows App", "Build RPM", "Build Flatpak Package"]
+    workflows: ["Build macOS App - Dual Architecture", "Build Windows App", "Build RPM Package", "Build Flatpak Package"]
     types:
       - completed
 
@@ -128,7 +128,7 @@ jobs:
           # Download from each platform workflow
           download_workflow_artifacts "Build macOS App - Dual Architecture" "2"
           download_workflow_artifacts "Build Windows App" "2" 
-          download_workflow_artifacts "Build RPM" "1"
+          download_workflow_artifacts "Build RPM Package" "1"
           download_workflow_artifacts "Build Flatpak Package" "1"
           
           echo "All available artifacts downloaded:"

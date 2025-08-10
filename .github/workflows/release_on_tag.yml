@@ -82,7 +82,7 @@ jobs:
           # Download from each platform workflow
           download_latest_artifacts "Build macOS App - Dual Architecture"
           download_latest_artifacts "Build Windows App"
-          download_latest_artifacts "Build RPM"
+          download_latest_artifacts "Build RPM Package"
           download_latest_artifacts "Build Flatpak Package"
           
           echo "All downloaded artifacts:"
