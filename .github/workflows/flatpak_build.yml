@@ -138,12 +138,5 @@ jobs:
         path: LogViewer-${{ steps.get_version.outputs.version }}.flatpak
         retention-days: 30
         
-    - name: Upload to release (if tag push)
-      if: steps.get_version.outputs.is_tag_build == 'true'
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.get_version.outputs.tag }}
-        files: LogViewer-${{ steps.get_version.outputs.version }}.flatpak
-        draft: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # Note: Release creation is handled by the comprehensive release workflows
+    # This workflow only creates and uploads artifacts

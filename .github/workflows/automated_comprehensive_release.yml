@@ -161,6 +161,7 @@ jobs:
             
             ### 🐧 Linux
             - **RPM Package (Red Hat/Fedora)**: `LogViewer-${{ needs.check-all-builds.outputs.version }}-0.rpm`
+            - **SRPM Package (Source RPM)**: `LogViewer-${{ needs.check-all-builds.outputs.version }}-0.src.rpm`
             - **Flatpak Package (Universal Linux)**: `LogViewer-${{ needs.check-all-builds.outputs.version }}.flatpak`
             
             ## 🚀 Installation
@@ -179,6 +180,13 @@ jobs:
             #### RPM (Red Hat/Fedora):
             ```bash
             sudo rpm -ivh LogViewer-${{ needs.check-all-builds.outputs.version }}-0.rpm
+            ```
+            
+            #### SRPM (Source RPM for rebuilding):
+            ```bash
+            # Install source RPM and rebuild
+            rpm -ivh LogViewer-${{ needs.check-all-builds.outputs.version }}-0.src.rpm
+            rpmbuild -ba ~/rpmbuild/SPECS/LogViewer.spec
             ```
             
             #### Flatpak (Universal Linux):

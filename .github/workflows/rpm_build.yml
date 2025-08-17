@@ -114,24 +114,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LogViewer-RPM-Package
-          path: ${{ env.RPM_FILE }}
+          path: ./LogViewer-*.x86_64.rpm
           retention-days: 30
           
       - name: Upload SRPM artifact
         uses: actions/upload-artifact@v4
         with:
           name: LogViewer-SRPM-Package
-          path: ${{ env.SRPM_FILE }}
+          path: ./LogViewer-*.src.rpm
           retention-days: 30
           
-      - name: Upload to release (if tag push)
-        if: steps.get_version.outputs.is_tag_build == 'true'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_version.outputs.tag }}
-          files: |
-            ${{ env.RPM_FILE }}
-            ${{ env.SRPM_FILE }}
-          draft: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Note: Release creation is handled by the comprehensive release workflows  
+      # This workflow only creates and uploads artifacts

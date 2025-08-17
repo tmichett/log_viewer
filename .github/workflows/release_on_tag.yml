@@ -103,8 +103,9 @@ jobs:
           find release-artifacts -name "LogViewer-*.exe" -exec cp {} final-artifacts/ \;
           find release-artifacts -name "*-Setup.exe" -exec cp {} final-artifacts/ \;
           
-          # Look for RPM files
+          # Look for RPM and SRPM files
           find release-artifacts -name "*.rpm" -exec cp {} final-artifacts/ \;
+          find release-artifacts -name "*.src.rpm" -exec cp {} final-artifacts/ \;
           
           # Look for Flatpak files
           find release-artifacts -name "*.flatpak" -exec cp {} final-artifacts/ \;
@@ -140,6 +141,7 @@ jobs:
             
             ### 🐧 Linux
             - **RPM Package (Red Hat/Fedora)**: `LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm`
+            - **SRPM Package (Source RPM)**: `LogViewer-${{ steps.version.outputs.VERSION }}-0.src.rpm`
             - **Flatpak Package (Universal Linux)**: `LogViewer-${{ steps.version.outputs.VERSION }}.flatpak`
             
             ## 🚀 Installation
@@ -158,6 +160,13 @@ jobs:
             #### RPM (Red Hat/Fedora):
             ```bash
             sudo rpm -ivh LogViewer-${{ steps.version.outputs.VERSION }}-0.rpm
+            ```
+            
+            #### SRPM (Source RPM for rebuilding):
+            ```bash
+            # Install source RPM and rebuild
+            rpm -ivh LogViewer-${{ steps.version.outputs.VERSION }}-0.src.rpm
+            rpmbuild -ba ~/rpmbuild/SPECS/LogViewer.spec
             ```
             
             #### Flatpak (Universal Linux):
