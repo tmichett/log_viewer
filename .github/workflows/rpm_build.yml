@@ -98,23 +98,30 @@ jobs:
           find ~/rpmbuild/SRPMS -name "*.src.rpm" -exec cp {} . \;
           ls -la *.rpm
           
-      - name: Rename RPM and SRPM files
+      - name: Identify RPM and SRPM files
         run: |
-          mv LogViewer-*.rpm LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
-          mv LogViewer-*.src.rpm LogViewer-${{ steps.get_version.outputs.version }}-0.src.rpm
+          # Find the actual file names
+          RPM_FILE=$(find . -name "LogViewer-*.x86_64.rpm" -type f)
+          SRPM_FILE=$(find . -name "LogViewer-*.src.rpm" -type f)
+          
+          echo "RPM_FILE=${RPM_FILE}" >> $GITHUB_ENV
+          echo "SRPM_FILE=${SRPM_FILE}" >> $GITHUB_ENV
+          
+          echo "Found RPM file: ${RPM_FILE}"
+          echo "Found SRPM file: ${SRPM_FILE}"
           
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
         with:
           name: LogViewer-RPM-Package
-          path: LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
+          path: ${{ env.RPM_FILE }}
           retention-days: 30
           
       - name: Upload SRPM artifact
         uses: actions/upload-artifact@v4
         with:
           name: LogViewer-SRPM-Package
-          path: LogViewer-${{ steps.get_version.outputs.version }}-0.src.rpm
+          path: ${{ env.SRPM_FILE }}
           retention-days: 30
           
       - name: Upload to release (if tag push)
@@ -123,8 +130,8 @@ jobs:
         with:
           tag_name: ${{ steps.get_version.outputs.tag }}
           files: |
-            LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
-            LogViewer-${{ steps.get_version.outputs.version }}-0.src.rpm
+            ${{ env.RPM_FILE }}
+            ${{ env.SRPM_FILE }}
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
