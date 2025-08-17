@@ -22,134 +22,109 @@ jobs:
     container: fedora:latest
     
     steps:
-<<<<<<< Updated upstream
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Install RPM build tools
-      run: |
-        dnf update -y
-        dnf install -y rpm-build rpmdevtools python3-pip git which findutils
-        
-    - name: Install Python dependencies
-      run: |
-        dnf install -y python3-devel python3-pip
-        pip3 install PyInstaller PyQt6 PyYAML Pillow
-        
-    - name: Extract version from Build_Version file
-      id: get_version
-      run: |
-        cd rpmbuild/SOURCES
-        VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        
-        # Determine if this is a tag build
-        if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "is_tag_build=true" >> $GITHUB_OUTPUT
-        elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
-          TAG_NAME="${{ github.event.inputs.tag }}"
-          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "is_tag_build=true" >> $GITHUB_OUTPUT
-        else
-          echo "is_tag_build=false" >> $GITHUB_OUTPUT
-        fi
-        
-        echo "Building version: $VERSION"
-        
-    - name: Display build information
-      run: |
-        echo "Building RPM package..."
-        echo "Version: ${{ steps.get_version.outputs.version }}"
-        echo "Is tag build: ${{ steps.get_version.outputs.is_tag_build }}"
-        if [ "${{ steps.get_version.outputs.is_tag_build }}" = "true" ]; then
-          echo "Tag: ${{ steps.get_version.outputs.tag }}"
-        fi
-        
-    - name: Update RPM version and build PyInstaller executable
-      run: |
-        cd rpmbuild/SOURCES
-        chmod +x update_rpm_version.sh
-        ./update_rpm_version.sh
-        
-        # Build the PyInstaller executable for RPM
-        pyinstaller log_viewer.spec
-        
-    - name: Setup RPM build environment
-      run: |
-        # Create RPM build directories
-        mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
-        
-        # Copy spec file
-        cp rpmbuild/SPECS/LogViewer.spec ~/rpmbuild/SPECS/
-        
-        # Copy source files
-        cp -r rpmbuild/SOURCES/* ~/rpmbuild/SOURCES/
-        
-    - name: Build RPM package
-      run: |
-        rpmbuild -ba ~/rpmbuild/SPECS/LogViewer.spec
-        
-    - name: Find and copy RPM file
-      run: |
-        find ~/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \;
-        ls -la *.rpm
-        
-    - name: Rename RPM file
-      run: |
-        mv LogViewer-*.rpm LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
-        
-    - name: Upload RPM artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: rpm-package
-        path: LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
-        retention-days: 30
-        
-    - name: Upload to release (if tag push)
-      if: steps.get_version.outputs.is_tag_build == 'true'
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.get_version.outputs.tag }}
-        files: LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
-        draft: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-=======
-
-      # In this job, all steps begin with a name
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Create Python Compiled application
-        run: bash rpmbuild/SOURCES/Build_App.sh 
-
-      - name: Create and Build RPM
-        run: bash ./RPM_Build_Clean.sh && ./RPM_Build.sh
-
-      - name: Upload RPM Artifacts
+        
+      - name: Install RPM build tools
+        run: |
+          dnf update -y
+          dnf install -y rpm-build rpmdevtools python3-pip git which findutils
+          
+      - name: Install Python dependencies
+        run: |
+          dnf install -y python3-devel python3-pip
+          pip3 install PyInstaller PyQt6 PyYAML Pillow
+          
+      - name: Extract version from Build_Version file
+        id: get_version
+        run: |
+          cd rpmbuild/SOURCES
+          VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Determine if this is a tag build
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "is_tag_build=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG_NAME="${{ github.event.inputs.tag }}"
+            echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "is_tag_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_tag_build=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Building version: $VERSION"
+          
+      - name: Display build information
+        run: |
+          echo "Building RPM package..."
+          echo "Version: ${{ steps.get_version.outputs.version }}"
+          echo "Is tag build: ${{ steps.get_version.outputs.is_tag_build }}"
+          if [ "${{ steps.get_version.outputs.is_tag_build }}" = "true" ]; then
+            echo "Tag: ${{ steps.get_version.outputs.tag }}"
+          fi
+          
+      - name: Update RPM version and build PyInstaller executable
+        run: |
+          cd rpmbuild/SOURCES
+          chmod +x update_rpm_version.sh
+          ./update_rpm_version.sh
+          
+          # Build the PyInstaller executable for RPM
+          pyinstaller log_viewer.spec
+          
+      - name: Setup RPM build environment
+        run: |
+          # Create RPM build directories
+          mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+          
+          # Copy spec file
+          cp rpmbuild/SPECS/LogViewer.spec ~/rpmbuild/SPECS/
+          
+          # Copy source files
+          cp -r rpmbuild/SOURCES/* ~/rpmbuild/SOURCES/
+          
+      - name: Build RPM package
+        run: |
+          rpmbuild -ba ~/rpmbuild/SPECS/LogViewer.spec
+          
+      - name: Find and copy RPM and SRPM files
+        run: |
+          # Find and copy binary RPM
+          find ~/rpmbuild/RPMS -name "*.rpm" -exec cp {} . \;
+          # Find and copy source RPM
+          find ~/rpmbuild/SRPMS -name "*.src.rpm" -exec cp {} . \;
+          ls -la *.rpm
+          
+      - name: Rename RPM and SRPM files
+        run: |
+          mv LogViewer-*.rpm LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
+          mv LogViewer-*.src.rpm LogViewer-${{ steps.get_version.outputs.version }}-0.src.rpm
+          
+      - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LogViewer-RPM-Packages
-          path: /home/runner/rpmbuild/RPMS/x86_64/*.rpm
+          name: LogViewer-RPM-Package
+          path: LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
           retention-days: 30
-
-      - name: Upload SRPM Artifacts
+          
+      - name: Upload SRPM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LogViewer-SRPM-Packages
-          path: /home/runner/rpmbuild/SRPMS/*.src.rpm
+          name: LogViewer-SRPM-Package
+          path: LogViewer-${{ steps.get_version.outputs.version }}-0.src.rpm
           retention-days: 30
-
-      - name: Create Release Draft
-        uses: softprops/action-gh-release@v2
+          
+      - name: Upload to release (if tag push)
+        if: steps.get_version.outputs.is_tag_build == 'true'
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }} # Use the tag name that triggered the workflow
-          draft: true # Create the release as a draft
+          tag_name: ${{ steps.get_version.outputs.tag }}
           files: |
-            /home/runner/rpmbuild/RPMS/x86_64/*.rpm
-            /home/runner/rpmbuild/SRPMS/*.src.rpm
+            LogViewer-${{ steps.get_version.outputs.version }}-0.rpm
+            LogViewer-${{ steps.get_version.outputs.version }}-0.src.rpm
+          draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
->>>>>>> Stashed changes
