@@ -32,18 +32,18 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/doc/LogViewer
 mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
 
 # Copy application files from git repository 
-# Since rpkg runs from the rpmbuild/ directory in git repo, files are in ../SOURCES
-cp -p ../SOURCES/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p ../SOURCES/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p ../SOURCES/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p ../SOURCES/smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
-cp -p ../SOURCES/log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
+# rpkg runs from rpmbuild/ directory, files are in SOURCES/ subdirectory
+cp -p SOURCES/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p SOURCES/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p SOURCES/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p SOURCES/smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
+cp -p SOURCES/log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
 
 # Copy documentation
-cp -p ../SOURCES/Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
+cp -p SOURCES/Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
 
 # Copy desktop file
-cp -p ../SOURCES/LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
+cp -p SOURCES/LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
 
 
 %clean
