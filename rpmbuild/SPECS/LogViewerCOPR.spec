@@ -11,12 +11,6 @@ License: Proprietary
 Group: Applications/System
 BuildRoot: %{buildroot}
 AutoReqProv: no
-Source1: config.yml
-Source2: log_viewer
-Source3: smallicon.png
-Source4: log_viewer_start.sh
-Source5: Install_README.md
-Source6: LogViewer.desktop
 
 
 %description
@@ -25,13 +19,20 @@ It supports ANSI color codes and provides features like text search,
 font size adjustment, and configurable term highlighting with custom colors.
 
 %prep
-# Copy source files to build directory  
-cp -p %{_sourcedir}/config.yml .
-cp -p %{_sourcedir}/log_viewer .
-cp -p %{_sourcedir}/smallicon.png .
-cp -p %{_sourcedir}/log_viewer_start.sh .
-cp -p %{_sourcedir}/Install_README.md .
-cp -p %{_sourcedir}/LogViewer.desktop .
+%setup -q -c -T
+# Debug: Show what files are available
+echo "=== Current directory ==="
+pwd
+ls -la
+echo "=== Parent directory ==="
+ls -la ..
+echo "=== Build root ==="
+ls -la %{_builddir}
+echo "=== Top dir ==="
+ls -la %{_topdir} || echo "topdir not accessible"
+echo "=== Looking for SOURCES ==="
+find %{_builddir} -name "SOURCES" -type d 2>/dev/null || echo "No SOURCES dir found"
+find .. -name "*.yml" 2>/dev/null || echo "No yml files found"
 
 %build
 # No build process needed
@@ -44,7 +45,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/doc/LogViewer
 mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
 
 
-# Copy application files to the buildroot (COPR git-based paths)
+# Copy application files to the buildroot
 cp -p config.yml $RPM_BUILD_ROOT/opt/LogViewer/
 cp -p log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
 cp -p smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
