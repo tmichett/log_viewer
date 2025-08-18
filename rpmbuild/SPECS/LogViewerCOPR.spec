@@ -19,9 +19,7 @@ It supports ANSI color codes and provides features like text search,
 font size adjustment, and configurable term highlighting with custom colors.
 
 %prep
-%setup -q -c -T
-# Copy files from SOURCES directory to build directory
-cp %{_topdir}/SOURCES/* .
+# No preparation needed for git-based build
 
 %build
 # No build process needed
@@ -34,18 +32,18 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/doc/LogViewer
 mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
 
 
-# Copy application files to the buildroot
-cp -p config.yml $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
-cp -p log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
+# Copy application files from git repository (COPR git build)
+cp -p %{_sourcedir}/../SOURCES/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p %{_sourcedir}/../SOURCES/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p %{_sourcedir}/../SOURCES/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p %{_sourcedir}/../SOURCES/smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
+cp -p %{_sourcedir}/../SOURCES/log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
 
 # Copy documentation
-cp -p Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
+cp -p %{_sourcedir}/../SOURCES/Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
 
 # Copy desktop file
-cp -p LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
+cp -p %{_sourcedir}/../SOURCES/LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
 
 
 %clean
