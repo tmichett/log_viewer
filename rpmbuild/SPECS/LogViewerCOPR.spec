@@ -32,18 +32,18 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/doc/LogViewer
 mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
 
 
-# Copy application files to the buildroot
-cp -p %{_sourcedir}/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p %{_sourcedir}/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p %{_sourcedir}/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p %{_sourcedir}/smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
-cp -p %{_sourcedir}/log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
+# Copy application files to the buildroot (COPR git-based paths)
+cp -p SOURCES/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p SOURCES/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p SOURCES/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p SOURCES/smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
+cp -p SOURCES/log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
 
 # Copy documentation
-cp -p %{_sourcedir}/Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
+cp -p SOURCES/Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
 
 # Copy desktop file
-cp -p %{_sourcedir}/LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
+cp -p SOURCES/LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
 
 
 %clean
@@ -62,10 +62,11 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Sun Aug 17 2025 Log Viewer Build <travis@michettetech.com> - 3.7.0-0
+* Mon Jan 13 2025 Log Viewer Build <travis@michettetech.com> - 3.7.0-0
 - Version bump to 3.7.0
 - Updated all build configurations for consistent versioning
 - Fixed COPR build configuration issues
+- Created COPR-specific spec file for git-based builds
 
 * Sun Jun 15 2025 Log Viewer Build <travis@michettetech.com> - 3.0.0-0
 - Enhanced search functionality with entire line highlighting
