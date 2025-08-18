@@ -20,19 +20,8 @@ font size adjustment, and configurable term highlighting with custom colors.
 
 %prep
 %setup -q -c -T
-# Debug: Show what files are available
-echo "=== Current directory ==="
-pwd
-ls -la
-echo "=== Parent directory ==="
-ls -la ..
-echo "=== Build root ==="
-ls -la %{_builddir}
-echo "=== Top dir ==="
-ls -la %{_topdir} || echo "topdir not accessible"
-echo "=== Looking for SOURCES ==="
-find %{_builddir} -name "SOURCES" -type d 2>/dev/null || echo "No SOURCES dir found"
-find .. -name "*.yml" 2>/dev/null || echo "No yml files found"
+# Copy files from SOURCES directory to build directory
+cp %{_topdir}/SOURCES/* .
 
 %build
 # No build process needed
