@@ -14,7 +14,7 @@ def get_version():
                     return line.split('=')[1].strip()
     except FileNotFoundError:
         print("Warning: Build_Version file not found, using default version")
-    return "3.0.0"
+    return "3.7.0"
 
 VERSION = get_version()
 print(f"Building Windows executable version: {VERSION}")

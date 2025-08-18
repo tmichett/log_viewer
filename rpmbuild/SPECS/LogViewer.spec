@@ -1,5 +1,5 @@
 %define name LogViewer
-%define version 3.1.0
+%define version 3.7.0
 %define release 0
 %define buildroot %{_tmppath}/%{name}-%{version}-%{release}-root
 
@@ -11,6 +11,8 @@ License: Proprietary
 Group: Applications/System
 BuildRoot: %{buildroot}
 AutoReqProv: no
+Source0: %{name}-%{version}.tar.gz
+Source1: config.yml
 
 
 %description

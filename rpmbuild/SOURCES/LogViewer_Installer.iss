@@ -2,10 +2,10 @@
 ; Author: travis@michettetech.com
 
 #define MyAppName "Log Viewer"
-#define MyAppVersion "3.3.0"
+#define MyAppVersion "3.7.0"
 #define MyAppPublisher "Michette Technologies"
 #define MyAppURL "https://github.com/tmichett/log_viewer"
-#define MyAppExeName "LogViewer-3.3.0.exe"
+#define MyAppExeName "LogViewer-3.7.0.exe"
 #define MyAppAssocName "Log Files"
 #define MyAppAssocExt ".log"
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt

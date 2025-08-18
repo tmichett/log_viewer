@@ -1,6 +1,6 @@
 # Log Viewer Flatpak Package
 
-This directory contains all the files needed to create a Flatpak package for the Log Viewer application (version 3.1.0).
+This directory contains all the files needed to create a Flatpak package for the Log Viewer application (version 3.7.0).
 
 ## Quick Start
 
@@ -81,7 +81,7 @@ The Flatpak has been configured with appropriate permissions:
 
 - **Developer**: Michette Technologies
 - **Contact**: travis@michettetech.com
-- **Version**: 3.1.0
+- **Version**: 3.7.0
 - **License**: Proprietary
 
 For detailed instructions, see `FLATPAK_BUILD_GUIDE.md`.
