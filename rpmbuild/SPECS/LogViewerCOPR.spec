@@ -11,12 +11,12 @@ License: Proprietary
 Group: Applications/System
 BuildRoot: %{buildroot}
 AutoReqProv: no
-Source1: SOURCES/config.yml
-Source2: SOURCES/log_viewer
-Source3: SOURCES/smallicon.png
-Source4: SOURCES/log_viewer_start.sh
-Source5: SOURCES/Install_README.md
-Source6: SOURCES/LogViewer.desktop
+Source1: config.yml
+Source2: log_viewer
+Source3: smallicon.png
+Source4: log_viewer_start.sh
+Source5: Install_README.md
+Source6: LogViewer.desktop
 
 
 %description
