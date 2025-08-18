@@ -11,7 +11,6 @@ License: Proprietary
 Group: Applications/System
 BuildRoot: %{buildroot}
 AutoReqProv: no
-Source0: %{name}-%{version}.tar.gz
 Source1: config.yml
 
 
@@ -64,7 +63,12 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Sat Jul 11 2025 Log Viewer Build <travis@michettetech.com> - 3.0.0-0
+* Mon Jan 13 2025 Log Viewer Build <travis@michettetech.com> - 3.7.0-0
+- Version bump to 3.7.0
+- Updated all build configurations for consistent versioning
+- Fixed COPR build configuration issues
+
+* Sun Dec 15 2024 Log Viewer Build <travis@michettetech.com> - 3.0.0-0
 - Enhanced search functionality with entire line highlighting
 - Added bidirectional search navigation (Find Next/Find Previous)
 - Improved search highlighting with proper cleanup of previous highlights
@@ -94,5 +98,5 @@ rm -rf $RPM_BUILD_ROOT
 - Improved documentation
 
 
-* Mon May 5 2023 Log Viewer Build <travis@michettetech.com> - 1.0-0
+* Fri May 05 2023 Log Viewer Build <travis@michettetech.com> - 1.0-0
 - Initial package build
