@@ -63,12 +63,12 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Mon Jan 13 2025 Log Viewer Build <travis@michettetech.com> - 3.7.0-0
+* Sun Aug 17 2025 Log Viewer Build <travis@michettetech.com> - 3.7.0-0
 - Version bump to 3.7.0
 - Updated all build configurations for consistent versioning
 - Fixed COPR build configuration issues
 
-* Sun Dec 15 2024 Log Viewer Build <travis@michettetech.com> - 3.0.0-0
+* Sun Jun 15 2025 Log Viewer Build <travis@michettetech.com> - 3.0.0-0
 - Enhanced search functionality with entire line highlighting
 - Added bidirectional search navigation (Find Next/Find Previous)
 - Improved search highlighting with proper cleanup of previous highlights
