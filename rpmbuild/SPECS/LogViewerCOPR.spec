@@ -31,6 +31,16 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/applications
 mkdir -p $RPM_BUILD_ROOT/usr/share/doc/LogViewer
 mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
 
+# Debug: Show directory structure during install
+echo "=== Install Debug ==="
+pwd
+echo "Source dir: %{_sourcedir}"
+ls -la %{_sourcedir} || echo "sourcedir not found"
+echo "Build dir: %{_builddir}"
+ls -la %{_builddir} || echo "builddir not found"
+echo "Searching for git files:"
+find %{_builddir} -name "config.yml" 2>/dev/null || echo "No config.yml found in builddir"
+find / -name "config.yml" 2>/dev/null | head -10 || echo "No config.yml found anywhere"
 
 # Copy application files from git repository (COPR git build)
 cp -p %{_sourcedir}/../SOURCES/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
