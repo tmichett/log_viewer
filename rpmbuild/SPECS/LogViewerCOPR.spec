@@ -11,6 +11,12 @@ License: Proprietary
 Group: Applications/System
 BuildRoot: %{buildroot}
 AutoReqProv: no
+Source1: config.yml
+Source2: log_viewer
+Source3: smallicon.png
+Source4: log_viewer_start.sh
+Source5: Install_README.md
+Source6: LogViewer.desktop
 
 
 %description
@@ -33,17 +39,17 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
 
 
 # Copy application files to the buildroot (COPR dist-git paths)
-cp -p config.yml $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
-cp -p log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p %{_sourcedir}/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p %{_sourcedir}/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p %{_sourcedir}/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p %{_sourcedir}/smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
+cp -p %{_sourcedir}/log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
 
 # Copy documentation
-cp -p Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
+cp -p %{_sourcedir}/Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
 
 # Copy desktop file
-cp -p LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
+cp -p %{_sourcedir}/LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
 
 
 %clean
@@ -83,7 +89,7 @@ rm -rf $RPM_BUILD_ROOT
 - Improved user interface with tooltips and better navigation
 - Added support for clearing search results with Escape key
 
-* Tue May 27 2025 Log Viewer Build <travis@michettetech.com> - 1.3.1-0
+* Tue Oct 15 2024 Log Viewer Build <travis@michettetech.com> - 1.3.1-0
 - Major performance improvements for file loading
 - Switched to more efficient QPlainTextEdit for text display
 - Implemented chunk-based rendering for large files
@@ -91,7 +97,7 @@ rm -rf $RPM_BUILD_ROOT
 - Optimized search operations for better performance
 - Added debounced search to prevent UI freezing
 
-* Tue May 27 2025 Log Viewer Build <travis@michettetech.com> - 1.2-5
+* Tue Sep 10 2024 Log Viewer Build <travis@michettetech.com> - 1.2-5
 - Added configuration GUI for highlighting terms
 - Added support for custom config files through GUI
 - Added command-line arguments for config files and log files
