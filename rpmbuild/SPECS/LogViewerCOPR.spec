@@ -11,6 +11,12 @@ License: Proprietary
 Group: Applications/System
 BuildRoot: %{buildroot}
 AutoReqProv: no
+Source1: config.yml
+Source2: log_viewer
+Source3: smallicon.png
+Source4: log_viewer_start.sh
+Source5: Install_README.md
+Source6: LogViewer.desktop
 
 
 %description
@@ -19,7 +25,13 @@ It supports ANSI color codes and provides features like text search,
 font size adjustment, and configurable term highlighting with custom colors.
 
 %prep
-# No preparation needed for this simple package
+# Copy source files to build directory  
+cp -p %{_sourcedir}/config.yml .
+cp -p %{_sourcedir}/log_viewer .
+cp -p %{_sourcedir}/smallicon.png .
+cp -p %{_sourcedir}/log_viewer_start.sh .
+cp -p %{_sourcedir}/Install_README.md .
+cp -p %{_sourcedir}/LogViewer.desktop .
 
 %build
 # No build process needed
@@ -33,17 +45,17 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
 
 
 # Copy application files to the buildroot (COPR git-based paths)
-cp -p SOURCES/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p SOURCES/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p SOURCES/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
-cp -p SOURCES/smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
-cp -p SOURCES/log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p config.yml $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
+cp -p smallicon.png $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps/LogViewer.png
+cp -p log_viewer_start.sh $RPM_BUILD_ROOT/opt/LogViewer/
 
 # Copy documentation
-cp -p SOURCES/Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
+cp -p Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/README.md
 
 # Copy desktop file
-cp -p SOURCES/LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
+cp -p LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
 
 
 %clean
