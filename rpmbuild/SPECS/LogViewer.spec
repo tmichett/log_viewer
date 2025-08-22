@@ -11,6 +11,12 @@ License: Proprietary
 Group: Applications/System
 BuildRoot: %{buildroot}
 AutoReqProv: no
+Source1: config.yml
+Source2: log_viewer
+Source3: smallicon.png
+Source4: log_viewer_start.sh
+Source5: Install_README.md
+Source6: LogViewer.desktop
 
 
 %description
@@ -32,7 +38,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/doc/LogViewer
 mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
 
 
-# Copy application files to the buildroot
+# Copy application files (now available in %{_sourcedir} via Source declarations)
 cp -p %{_sourcedir}/config.yml $RPM_BUILD_ROOT/opt/LogViewer/
 cp -p %{_sourcedir}/log_viewer $RPM_BUILD_ROOT/opt/LogViewer/
 cp -p %{_sourcedir}/smallicon.png $RPM_BUILD_ROOT/opt/LogViewer/
