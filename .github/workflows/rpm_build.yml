@@ -30,17 +30,32 @@ jobs:
           dnf update -y
           dnf install -y rpm-build rpmdevtools python3-pip git which findutils
           
-      - name: Install Python dependencies
+      - name: Install Python dependencies and uv
         run: |
-          dnf install -y python3-devel python3-pip
-          pip3 install PyInstaller PyQt6 PyYAML Pillow
+          dnf install -y python3-devel python3-pip curl
+          # Install uv for better Python dependency management
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          source ~/.bashrc || true
           
       - name: Extract version from Build_Version file
         id: get_version
         run: |
           cd rpmbuild/SOURCES
-          VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+          
+          # Improved version extraction with fallback (like Build_App.sh)
+          if [ -f "Build_Version" ]; then
+              VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
+              if [ -z "$VERSION" ]; then
+                  echo "Warning: VERSION not found in Build_Version file, using default"
+                  VERSION="3.0.0"
+              fi
+          else
+              echo "Warning: Build_Version file not found, using default version"
+              VERSION="3.0.0"
+          fi
+          
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building Log Viewer version: $VERSION"
           
           # Determine if this is a tag build
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
@@ -66,14 +81,45 @@ jobs:
             echo "Tag: ${{ steps.get_version.outputs.tag }}"
           fi
           
-      - name: Update RPM version and build PyInstaller executable
+      - name: Setup virtual environment and build PyInstaller executable
         run: |
           cd rpmbuild/SOURCES
+          
+          # Update RPM spec file with current version
+          echo "Updating RPM spec file..."
           chmod +x update_rpm_version.sh
           ./update_rpm_version.sh
           
-          # Build the PyInstaller executable for RPM
-          pyinstaller log_viewer.spec
+          # Clean up any existing virtual environment
+          rm -rf log_viewer_venv
+          
+          # Create and activate virtual environment
+          echo "Creating virtual environment..."
+          ~/.local/bin/uv venv log_viewer_venv
+          source log_viewer_venv/bin/activate
+          
+          # Install all required dependencies from requirements.txt
+          echo "Installing dependencies from requirements.txt..."
+          ~/.local/bin/uv pip install -r requirements.txt
+          
+          # Install PyInstaller
+          echo "Installing PyInstaller..."
+          ~/.local/bin/uv pip install PyInstaller
+          
+          # Build the executable with better error handling
+          echo "Building executable with PyInstaller..."
+          pyinstaller --noconfirm ./log_viewer.spec
+          
+          # Validate build success
+          if [ -f "./dist/log_viewer" ]; then
+              cp ./dist/log_viewer ./
+              echo "Build completed successfully!"
+              echo "Executable location: $(pwd)/log_viewer"
+              echo "Executable size: $(du -h log_viewer | cut -f1)"
+          else
+              echo "Error: Build failed - executable not found in dist/"
+              exit 1
+          fi
           
       - name: Setup RPM build environment
         run: |
