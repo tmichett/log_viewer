@@ -35,7 +35,9 @@ jobs:
           dnf install -y python3-devel python3-pip curl
           # Install uv for better Python dependency management
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          source ~/.bashrc || true
+          # Add uv to PATH for current session
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
           
       - name: Extract version from Build_Version file
         id: get_version
@@ -95,16 +97,16 @@ jobs:
           
           # Create and activate virtual environment
           echo "Creating virtual environment..."
-          ~/.local/bin/uv venv log_viewer_venv
+          uv venv log_viewer_venv
           source log_viewer_venv/bin/activate
           
           # Install all required dependencies from requirements.txt
           echo "Installing dependencies from requirements.txt..."
-          ~/.local/bin/uv pip install -r requirements.txt
+          uv pip install -r requirements.txt
           
           # Install PyInstaller
           echo "Installing PyInstaller..."
-          ~/.local/bin/uv pip install PyInstaller
+          uv pip install PyInstaller
           
           # Build the executable with better error handling
           echo "Building executable with PyInstaller..."
