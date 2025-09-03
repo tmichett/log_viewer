@@ -189,8 +189,18 @@ log_viewer --help
 
 ### Configuration Files
 
+#### Configuration Precedence
+The application loads configuration files in the following order of precedence:
+
+1. **Command line config** (highest priority): `log_viewer --config /path/to/config.yml`
+2. **User default config**: `~/logviewer_config.yml` (user's home directory)
+3. **Platform-specific config** (lowest priority):
+   - **Linux**: `./config.yml` (current directory)
+   - **macOS**: `~/Library/Application Support/LogViewer/config.yml`
+   - **Windows**: `%APPDATA%\LogViewer\config.yml`
+
 #### Default Configuration
-The application looks for `config.yml` in the current directory. Example:
+Example configuration file structure:
 ```yaml
 highlight_terms:
   - term: "ERROR"
@@ -206,6 +216,14 @@ highlight_terms:
 - **term**: The text to highlight
 - **color**: Hex color code (optional, defaults to cornflower blue)
 - **Simple format**: Just the term string for default highlighting
+
+#### Creating a User Default Config
+To create a user-specific configuration that will be used by default:
+
+1. Create a file named `logviewer_config.yml` in your home directory
+2. Copy the structure from any existing config file or use the example above
+3. The next time you start Log Viewer, it will automatically use your user config
+4. This config will take precedence over platform-specific configs but can still be overridden with `--config`
 
 ## Technical Details
 
@@ -226,9 +244,9 @@ highlight_terms:
 
 | Platform | Support | Package Format | Configuration Path |
 |----------|---------|----------------|-------------------|
-| **Linux** | ✅ Full | RPM, Source | `./config.yml` |
-| **macOS** | ✅ Full | DMG (App Bundle) - Dual Architecture | `~/Library/Application Support/LogViewer/` |
-| **Windows** | ✅ Full | EXE, Source | `%APPDATA%\LogViewer\` |
+| **Linux** | ✅ Full | RPM, Source | `~/logviewer_config.yml` or `./config.yml` |
+| **macOS** | ✅ Full | DMG (App Bundle) - Dual Architecture | `~/logviewer_config.yml` or `~/Library/Application Support/LogViewer/config.yml` |
+| **Windows** | ✅ Full | EXE, Source | `~/logviewer_config.yml` or `%APPDATA%\LogViewer\config.yml` |
 
 ### macOS Architecture Support
 - **Intel x86_64**: `LogViewer-{VERSION}-macOS-x86_64.dmg`

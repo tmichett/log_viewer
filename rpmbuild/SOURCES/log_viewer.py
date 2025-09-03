@@ -260,6 +260,12 @@ def get_theme_colors(theme_mode):
 # Cross-platform configuration path handling
 def get_config_path():
     """Get the appropriate configuration file path for the current platform"""
+    # First, check for user default config in home directory
+    user_config_path = os.path.join(os.path.expanduser('~'), 'logviewer_config.yml')
+    if os.path.exists(user_config_path):
+        return user_config_path
+    
+    # If user default config doesn't exist, use platform-specific paths
     if platform.system() == 'Windows':
         # Use Windows AppData directory for configuration
         app_data = os.environ.get('APPDATA', os.path.expanduser('~'))
@@ -573,6 +579,56 @@ class HelpDialog(QDialog):
                 <li><strong>Colors:</strong> Use the color picker to choose highlight colors</li>
             </ul>
             
+            <h2>Configuration Files</h2>
+            <h3>Configuration Precedence</h3>
+            <p>Log Viewer loads configuration files in the following order of precedence:</p>
+            <ol>
+                <li><strong>Command Line Config</strong> (Highest Priority): <code>log_viewer --config /path/to/config.yml</code></li>
+                <li><strong>User Default Config</strong>: <code>~/logviewer_config.yml</code> (in your home directory)</li>
+                <li><strong>Platform-Specific Config</strong> (Lowest Priority): See platform sections below</li>
+            </ol>
+            
+            <h3>Creating a User Default Config</h3>
+            <p>To create a personal configuration that applies to all Log Viewer sessions:</p>
+            <ol>
+                <li>Open the Configuration Dialog ("Configure Highlighting" button)</li>
+                <li>Set up your preferred highlight terms and colors</li>
+                <li>Click "Save Config" - it will default to <code>~/logviewer_config.yml</code></li>
+                <li>Your settings will automatically load in future sessions</li>
+            </ol>
+            
+            <h3>Configuration Structure</h3>
+            <pre>highlight_terms:
+  - term: "ERROR"
+    color: "#ff0000"
+  - term: "WARNING" 
+    color: "#ffff00"
+  - "INFO"  # Uses default color
+theme: "system"  # Options: system, light, dark
+line_wrap_enabled: false</pre>
+            
+            <h2>Themes and Display</h2>
+            <h3>Theme Options</h3>
+            <ul>
+                <li><strong>System Theme:</strong> Automatically matches your operating system theme</li>
+                <li><strong>Light Theme:</strong> Light background with dark text</li>
+                <li><strong>Dark Theme:</strong> Dark background optimized for log viewing</li>
+            </ul>
+            
+            <h3>Changing Themes</h3>
+            <ol>
+                <li>Go to <strong>View</strong> → <strong>Theme</strong> in the menu bar</li>
+                <li>Select your preferred theme option</li>
+                <li>The theme will change immediately and be saved to your configuration</li>
+            </ol>
+            
+            <h3>Line Wrapping</h3>
+            <ul>
+                <li>Toggle line wrapping using <strong>View</strong> → <strong>Line Wrap</strong></li>
+                <li>When enabled, long lines will wrap to fit the window width</li>
+                <li>When disabled, long lines extend horizontally with a scrollbar</li>
+            </ul>
+            
             <h2>Keyboard Shortcuts</h2>
             <h3>File Operations</h3>
             <ul>
@@ -600,14 +656,16 @@ class HelpDialog(QDialog):
             <h2>Platform-Specific Notes</h2>
             <h3>Windows</h3>
             <ul>
-                <li>Configuration files are stored in <code>%APPDATA%\\LogViewer\\</code></li>
+                <li><strong>User Config:</strong> <code>~/logviewer_config.yml</code> (recommended)</li>
+                <li><strong>System Config:</strong> <code>%APPDATA%\\LogViewer\\config.yml</code></li>
                 <li>Use Windows-style paths (e.g., <code>C:\\path\\to\\file.log</code>)</li>
                 <li>The application supports high DPI displays</li>
             </ul>
             
             <h3>macOS</h3>
             <ul>
-                <li>Configuration files are stored in <code>~/Library/Application Support/LogViewer/</code></li>
+                <li><strong>User Config:</strong> <code>~/logviewer_config.yml</code> (recommended)</li>
+                <li><strong>System Config:</strong> <code>~/Library/Application Support/LogViewer/config.yml</code></li>
                 <li>Use Unix-style paths (e.g., <code>/path/to/file.log</code>)</li>
                 <li>The application supports Retina displays</li>
                 <li>Use Cmd+O to open files and Cmd+Q to quit</li>
@@ -615,7 +673,8 @@ class HelpDialog(QDialog):
             
             <h3>Linux</h3>
             <ul>
-                <li>Configuration files are stored in the current directory</li>
+                <li><strong>User Config:</strong> <code>~/logviewer_config.yml</code> (recommended)</li>
+                <li><strong>System Config:</strong> <code>./config.yml</code> (current directory)</li>
                 <li>Use Unix-style paths (e.g., <code>/path/to/file.log</code>)</li>
                 <li>The application supports high DPI displays</li>
             </ul>
@@ -652,35 +711,35 @@ class AboutDialog(QDialog):
         
         # Application info
         app_label = QLabel("Log Viewer Application")
-        app_label.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
+        app_label.setStyleSheet(f"""
+            QLabel {{
+                color: {self.theme_colors.text_color};
                 font-size: 18pt;
                 font-weight: bold;
                 text-align: center;
-            }
+            }}
         """)
         app_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(app_label)
         
         company_label = QLabel("Michette Technologies")
-        company_label.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
+        company_label.setStyleSheet(f"""
+            QLabel {{
+                color: {self.theme_colors.text_color};
                 font-size: 14pt;
                 text-align: center;
-            }
+            }}
         """)
         company_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(company_label)
         
         version_label = QLabel(f"Version {APP_VERSION}")
-        version_label.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
+        version_label.setStyleSheet(f"""
+            QLabel {{
+                color: {self.theme_colors.text_color};
                 font-size: 12pt;
                 text-align: center;
-            }
+            }}
         """)
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(version_label)
@@ -690,12 +749,12 @@ class AboutDialog(QDialog):
         
         # Additional info
         info_label = QLabel("A powerful log file viewer with ANSI color support\nand configurable highlighting features.")
-        info_label.setStyleSheet("""
-            QLabel {
-                color: #cccccc;
+        info_label.setStyleSheet(f"""
+            QLabel {{
+                color: {self.theme_colors.window_text};
                 font-size: 10pt;
                 text-align: center;
-            }
+            }}
         """)
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         info_label.setWordWrap(True)
@@ -706,18 +765,18 @@ class AboutDialog(QDialog):
         
         # Close button
         close_btn = QPushButton("Close")
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3f3f3f;
-                color: white;
-                border: 1px solid #555555;
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
                 padding: 8px;
                 border-radius: 3px;
                 min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #4f4f4f;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
         """)
         close_btn.clicked.connect(self.accept)
         
@@ -925,10 +984,8 @@ class ConfigDialog(QDialog):
             self.update_terms_list()
     
     def save_config(self):
-        # Create default filename with .yml extension
-        import time
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        default_filename = f"logviewer_config_{timestamp}.yml"
+        # Default to user's home directory with standard config filename
+        default_filename = "logviewer_config.yml"
         default_path = os.path.join(os.path.expanduser("~"), default_filename)
         
         file_name, _ = QFileDialog.getSaveFileName(
@@ -2021,31 +2078,15 @@ class LogViewer(QMainWindow):
                         # Apply the loaded line wrap setting
                         self.apply_line_wrap_setting()
                     
-                    self.status_label.setText(f"Config loaded from {self.config_path}")
+                    # Display which config file was loaded
+                    user_config_path = os.path.join(os.path.expanduser('~'), 'logviewer_config.yml')
+                    if self.config_path == user_config_path:
+                        self.status_label.setText("User default config loaded from ~/logviewer_config.yml")
+                    else:
+                        self.status_label.setText(f"Config loaded from {self.config_path}")
             else:
-                # Load default config if no custom config exists
-                default_config_path = 'config.yml'
-                if os.path.exists(default_config_path) and self.config_path != default_config_path:
-                    with open(default_config_path, 'r', encoding='utf-8') as f:
-                        config = yaml.safe_load(f)
-                        if 'highlight_terms' in config:
-                            self.highlight_terms = config['highlight_terms']
-                            self.highlighter.set_highlight_terms(self.highlight_terms)
-                        
-                        # Load theme preference if present in default config
-                        if 'theme' in config:
-                            try:
-                                self.current_theme_mode = ThemeMode(config['theme'])
-                            except (ValueError, KeyError):
-                                self.current_theme_mode = ThemeMode.SYSTEM
-                        
-                        # Load line wrap preference if present in default config
-                        if 'line_wrap_enabled' in config:
-                            self.line_wrap_enabled = config['line_wrap_enabled']
-                            # Apply the loaded line wrap setting
-                            self.apply_line_wrap_setting()
-                        
-                        self.status_label.setText("Default config loaded")
+                # No configuration file found, use defaults
+                self.status_label.setText("No configuration file found, using defaults")
                         
             # Ensure we always have a valid theme mode
             if not hasattr(self, 'current_theme_mode') or self.current_theme_mode is None:

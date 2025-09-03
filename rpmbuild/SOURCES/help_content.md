@@ -42,12 +42,20 @@
 
 ## Configuration
 
-### Configuration Files
-- Default configuration: `config.yml` in the application directory
-- Custom configurations: Load different configs for different log types
-- YAML format with terms and optional colors
+### Configuration Precedence
+Log Viewer loads configuration files in the following order of precedence:
+1. **Command Line Config** (Highest Priority): `log_viewer --config /path/to/config.yml`
+2. **User Default Config**: `~/logviewer_config.yml` (in your home directory)
+3. **Platform-Specific Config** (Lowest Priority): See platform sections
 
-### Example Configuration
+### Creating a User Default Config
+To create a personal configuration that applies to all Log Viewer sessions:
+1. Open the Configuration Dialog ("Configure Highlighting" button)
+2. Set up your preferred highlight terms and colors
+3. Click "Save Config" - it will default to `~/logviewer_config.yml`
+4. Your settings will automatically load in future sessions
+
+### Configuration Structure
 ```yaml
 highlight_terms:
   - term: "ERROR"
@@ -55,6 +63,8 @@ highlight_terms:
   - term: "WARNING"
     color: "#ffff00"
   - "INFO"  # Uses default color
+theme: "system"  # Options: system, light, dark
+line_wrap_enabled: false
 ```
 
 ## User Interface
@@ -64,10 +74,21 @@ highlight_terms:
 - Range: 6pt to 72pt
 - Changes apply immediately
 
-### Dark Theme
-- Application uses a dark theme optimized for log viewing
-- High contrast for better readability
-- Consistent styling across all dialogs
+### Themes and Display
+#### Theme Options
+- **System Theme**: Automatically matches your operating system theme
+- **Light Theme**: Light background with dark text  
+- **Dark Theme**: Dark background optimized for log viewing
+
+#### Changing Themes
+1. Go to **View** → **Theme** in the menu bar
+2. Select your preferred theme option
+3. The theme will change immediately and be saved to your configuration
+
+#### Line Wrapping
+- Toggle line wrapping using **View** → **Line Wrap**
+- When enabled, long lines will wrap to fit the window width
+- When disabled, long lines extend horizontally with a scrollbar
 
 ## Performance
 
