@@ -1122,6 +1122,9 @@ class LogViewer(QMainWindow):
         self.current_file = None
         self.total_content = ""
         
+        # Line wrap state
+        self.line_wrap_enabled = False
+        
         # Theme system
         self.current_theme_mode = ThemeMode.SYSTEM
         self.current_theme_colors = get_theme_colors(self.current_theme_mode)
@@ -1420,6 +1423,13 @@ class LogViewer(QMainWindow):
         # Set initial theme selection
         self.theme_actions[self.current_theme_mode].setChecked(True)
         
+        # Add separator and line wrap toggle
+        view_menu.addSeparator()
+        self.line_wrap_action = view_menu.addAction("Line Wrap")
+        self.line_wrap_action.setCheckable(True)
+        self.line_wrap_action.setChecked(self.line_wrap_enabled)
+        self.line_wrap_action.triggered.connect(self.toggle_line_wrap)
+        
         # Help menu
         help_menu = menubar.addMenu("Help")
         
@@ -1644,6 +1654,72 @@ class LogViewer(QMainWindow):
             self.status_label.setText("System theme refreshed")
         else:
             self.status_label.setText("Theme refresh only works in System Default mode")
+
+    def toggle_line_wrap(self):
+        """Toggle line wrapping on/off in the text editor"""
+        self.line_wrap_enabled = not self.line_wrap_enabled
+        
+        # Apply the new line wrap mode to the text editor
+        try:
+            if self.line_wrap_enabled:
+                # Enable word wrapping
+                try:
+                    self.text_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+                except (AttributeError, TypeError):
+                    try:
+                        self.text_editor.setLineWrapMode(QPlainTextEdit.WidgetWidth)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not enable line wrap mode.")
+            else:
+                # Disable word wrapping  
+                try:
+                    self.text_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+                except (AttributeError, TypeError):
+                    try:
+                        self.text_editor.setLineWrapMode(QPlainTextEdit.NoWrap)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not disable line wrap mode.")
+        except Exception as e:
+            print(f"Error setting line wrap mode: {e}")
+        
+        # Update the menu action text if it exists
+        if hasattr(self, 'line_wrap_action'):
+            self.line_wrap_action.setChecked(self.line_wrap_enabled)
+        
+        # Save the preference
+        self.save_app_config()
+        
+        # Update status
+        wrap_status = "enabled" if self.line_wrap_enabled else "disabled"
+        self.status_label.setText(f"Line wrap {wrap_status}")
+
+    def apply_line_wrap_setting(self):
+        """Apply the current line wrap setting without saving to config"""
+        try:
+            if self.line_wrap_enabled:
+                # Enable word wrapping
+                try:
+                    self.text_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+                except (AttributeError, TypeError):
+                    try:
+                        self.text_editor.setLineWrapMode(QPlainTextEdit.WidgetWidth)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not enable line wrap mode.")
+            else:
+                # Disable word wrapping  
+                try:
+                    self.text_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+                except (AttributeError, TypeError):
+                    try:
+                        self.text_editor.setLineWrapMode(QPlainTextEdit.NoWrap)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not disable line wrap mode.")
+        except Exception as e:
+            print(f"Error setting line wrap mode: {e}")
+        
+        # Update the menu action state if it exists
+        if hasattr(self, 'line_wrap_action'):
+            self.line_wrap_action.setChecked(self.line_wrap_enabled)
     
     def save_app_config(self):
         """Save application configuration including theme preference"""
@@ -1659,6 +1735,9 @@ class LogViewer(QMainWindow):
             
             # Update theme preference
             config['theme'] = self.current_theme_mode.value
+            
+            # Update line wrap preference
+            config['line_wrap_enabled'] = self.line_wrap_enabled
             
             # Preserve highlight terms if they exist
             if self.highlight_terms:
@@ -1936,6 +2015,12 @@ class LogViewer(QMainWindow):
                         except (ValueError, KeyError):
                             self.current_theme_mode = ThemeMode.SYSTEM
                     
+                    # Load line wrap preference if present
+                    if 'line_wrap_enabled' in config:
+                        self.line_wrap_enabled = config['line_wrap_enabled']
+                        # Apply the loaded line wrap setting
+                        self.apply_line_wrap_setting()
+                    
                     self.status_label.setText(f"Config loaded from {self.config_path}")
             else:
                 # Load default config if no custom config exists
@@ -1954,6 +2039,12 @@ class LogViewer(QMainWindow):
                             except (ValueError, KeyError):
                                 self.current_theme_mode = ThemeMode.SYSTEM
                         
+                        # Load line wrap preference if present in default config
+                        if 'line_wrap_enabled' in config:
+                            self.line_wrap_enabled = config['line_wrap_enabled']
+                            # Apply the loaded line wrap setting
+                            self.apply_line_wrap_setting()
+                        
                         self.status_label.setText("Default config loaded")
                         
             # Ensure we always have a valid theme mode
@@ -1967,6 +2058,14 @@ class LogViewer(QMainWindow):
             if hasattr(self, 'theme_actions'):
                 for mode, action in self.theme_actions.items():
                     action.setChecked(mode == self.current_theme_mode)
+            
+            # Update line wrap menu action if it exists
+            if hasattr(self, 'line_wrap_action'):
+                self.line_wrap_action.setChecked(self.line_wrap_enabled)
+                
+            # Apply line wrap setting if text editor exists
+            if hasattr(self, 'text_editor'):
+                self.apply_line_wrap_setting()
                     
         except Exception as e:
             self.status_label.setText(f"Error loading config: {e}")

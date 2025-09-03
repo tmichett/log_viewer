@@ -7,4 +7,5 @@ highlight_terms:
 - installing
 - color: '#FF0000'
   term: running
-theme: system
+line_wrap_enabled: false
+theme: dark
