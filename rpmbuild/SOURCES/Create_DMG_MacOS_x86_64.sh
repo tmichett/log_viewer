@@ -4,7 +4,21 @@
 
 # Check if we're running on macOS
 if [[ "$OSTYPE" != "darwin"* ]]; then
-    echo "Error: This script must be run on macOS"
+    echo "Error: DMG creation requires macOS"
+    echo "Current OS: $OSTYPE"
+    echo "This script must be run on a macOS system with hdiutil available"
+    echo ""
+    echo "Alternatives:"
+    echo "1. Run this script on a macOS machine"
+    echo "2. Use GitHub Actions macOS runner for automated builds"
+    echo "3. Use a macOS virtual machine or container"
+    exit 1
+fi
+
+# Check if hdiutil is available
+if ! command -v hdiutil &> /dev/null; then
+    echo "Error: hdiutil command not found"
+    echo "hdiutil is required for DMG creation and should be available on macOS"
     exit 1
 fi
 
@@ -47,10 +61,43 @@ fi
 
 echo "Creating DMG package for $APP_NAME ($ARCH)..."
 
-# Clean up any existing DMG artifacts
-rm -rf dmg_temp_x86_64
-rm -f "$DMG_NAME.dmg"
-rm -f temp_dmg_x86_64.dmg
+# Enhanced cleanup function
+cleanup_dmg_artifacts() {
+    echo "Performing enhanced cleanup of DMG artifacts..."
+    
+    # Force unmount any existing volumes with our volume name
+    if [ -d "/Volumes/$VOLUME_NAME" ]; then
+        echo "Found existing volume mounted: $VOLUME_NAME"
+        for i in {1..3}; do
+            if hdiutil detach "/Volumes/$VOLUME_NAME" -force >/dev/null 2>&1; then
+                echo "Successfully unmounted existing volume"
+                break
+            else
+                echo "Attempt $i: Retrying unmount..."
+                sleep 2
+            fi
+        done
+    fi
+    
+    # Kill any lingering hdiutil processes
+    pkill -f "hdiutil.*$DMG_NAME" >/dev/null 2>&1 || true
+    
+    # Wait a moment for processes to terminate
+    sleep 1
+    
+    # Remove temporary files and directories
+    rm -rf dmg_temp_x86_64
+    rm -f "$DMG_NAME.dmg"
+    rm -f temp_dmg_x86_64.dmg
+    
+    # Remove any potential .DS_Store files that might cause issues
+    find . -name ".DS_Store" -delete >/dev/null 2>&1 || true
+    
+    echo "Cleanup completed"
+}
+
+# Perform cleanup
+cleanup_dmg_artifacts
 
 # Create temporary DMG directory
 mkdir -p dmg_temp_x86_64
