@@ -1,9 +1,10 @@
-highlight_terms: 
-  - warn
-  - err
-  - fatal
-  - alert
-  - fail
-  - installing
-  - term: running
-    color: "#FF0000"
+highlight_terms:
+- warn
+- err
+- fatal
+- alert
+- fail
+- installing
+- color: '#FF0000'
+  term: running
+theme: system
