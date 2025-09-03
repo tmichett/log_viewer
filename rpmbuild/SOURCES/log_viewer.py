@@ -41,8 +41,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QTextEdit,
                            QColorDialog, QDialog, QFormLayout,
                            QDialogButtonBox, QMessageBox, QInputDialog,
                            QProgressBar, QScrollBar, QPlainTextEdit, QMenuBar,
-                           QMenu, QTextBrowser, QScrollArea)
-from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette, QTextCursor
+                           QMenu, QTextBrowser, QScrollArea, QCheckBox)
+from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette, QTextCursor, QFont
 from PyQt6.QtCore import (Qt, QRunnable, QThreadPool, pyqtSignal, QObject, 
                          pyqtSlot, QTimer, QSize, QStandardPaths)
 from PyQt6.QtGui import QShortcut, QKeySequence
@@ -388,20 +388,48 @@ class LogHighlighter(QSyntaxHighlighter):
         self.highlight_terms = []
         for term in terms:
             if isinstance(term, dict):
-                # New format with optional color
+                # New format with optional color, text_color, and bold
                 highlight_format = QTextCharFormat()
+                
+                # Set background color
                 if 'color' in term:
                     # Convert hex color to QColor
                     color = QColor(term['color'])
                     highlight_format.setBackground(color)
-                    # Set text color to black or white based on background brightness
-                    if color.lightness() > 128:
+                else:
+                    # Use default background color
+                    highlight_format.setBackground(QColor(100, 149, 237))
+                
+                # Set text color
+                if 'text_color' in term:
+                    # Use custom text color
+                    text_color = QColor(term['text_color'])
+                    highlight_format.setForeground(text_color)
+                elif 'color' in term:
+                    # Auto-select text color based on background brightness (legacy behavior)
+                    bg_color = QColor(term['color'])
+                    if bg_color.lightness() > 128:
                         highlight_format.setForeground(QColor(0, 0, 0))
                     else:
                         highlight_format.setForeground(QColor(255, 255, 255))
                 else:
-                    # Use default format if no color specified
-                    highlight_format = self.default_highlight_format
+                    # Use default text color
+                    highlight_format.setForeground(QColor(0, 0, 0))
+                
+                # Set bold formatting
+                if term.get('bold', False):
+                    try:
+                        highlight_format.setFontWeight(QFont.Weight.Bold)
+                    except AttributeError:
+                        # Fallback for older PyQt versions
+                        highlight_format.setFontWeight(700)  # Bold weight
+                else:
+                    try:
+                        highlight_format.setFontWeight(QFont.Weight.Normal)
+                    except AttributeError:
+                        # Fallback for older PyQt versions
+                        highlight_format.setFontWeight(400)  # Normal weight
+                
                 self.highlight_terms.append({
                     'term': term['term'].lower(),
                     'format': highlight_format
@@ -785,6 +813,241 @@ class AboutDialog(QDialog):
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
 
+class TermFormatDialog(QDialog):
+    def __init__(self, parent=None, term="", bg_color=None, text_color=None, bold=False):
+        super().__init__(parent)
+        self.setWindowTitle("Term Formatting")
+        self.setModal(True)
+        self.resize(400, 300)
+        
+        # Get theme colors from parent
+        if parent and hasattr(parent, 'theme_colors'):
+            self.theme_colors = parent.theme_colors
+        elif parent and hasattr(parent, 'current_theme_colors'):
+            self.theme_colors = parent.current_theme_colors
+        else:
+            # Fallback theme colors for dark mode
+            self.theme_colors = type('', (), {
+                'window_bg': '#2b2b2b',
+                'window_text': '#ffffff',
+                'button_bg': '#404040',
+                'button_text': '#ffffff',
+                'border_color': '#555555',
+                'hover_color': '#505050',
+                'pressed_color': '#606060'
+            })()
+        
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {self.theme_colors.window_bg};
+                color: {self.theme_colors.window_text};
+            }}
+            QLabel {{
+                color: {self.theme_colors.window_text};
+                background: transparent;
+            }}
+        """)
+        
+        layout = QVBoxLayout(self)
+        
+        # Term input
+        term_layout = QHBoxLayout()
+        term_layout.addWidget(QLabel("Term:"))
+        self.term_edit = QLineEdit(term)
+        self.term_edit.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 5px;
+                border-radius: 3px;
+            }}
+        """)
+        term_layout.addWidget(self.term_edit)
+        layout.addLayout(term_layout)
+        
+        # Background color
+        bg_layout = QHBoxLayout()
+        bg_layout.addWidget(QLabel("Background Color:"))
+        self.bg_color_btn = QPushButton("Choose Color")
+        self.bg_color = QColor(bg_color) if bg_color else QColor(100, 149, 237)
+        self.bg_color_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.bg_color.name()};
+                color: {'#000000' if self.bg_color.lightness() > 128 else '#ffffff'};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                border: 2px solid {self.theme_colors.border_color};
+            }}
+        """)
+        self.bg_color_btn.clicked.connect(self.choose_bg_color)
+        bg_layout.addWidget(self.bg_color_btn)
+        layout.addLayout(bg_layout)
+        
+        # Text color
+        text_layout = QHBoxLayout()
+        text_layout.addWidget(QLabel("Text Color:"))
+        self.text_color_btn = QPushButton("Choose Color")
+        self.text_color = QColor(text_color) if text_color else None
+        self.update_text_color_button()
+        self.text_color_btn.clicked.connect(self.choose_text_color)
+        text_layout.addWidget(self.text_color_btn)
+        
+        # Clear text color button
+        self.clear_text_btn = QPushButton("Auto")
+        self.clear_text_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        self.clear_text_btn.clicked.connect(self.clear_text_color)
+        text_layout.addWidget(self.clear_text_btn)
+        layout.addLayout(text_layout)
+        
+        # Bold checkbox
+        self.bold_checkbox = QCheckBox("Bold Text")
+        self.bold_checkbox.setChecked(bold)
+        self.bold_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {self.theme_colors.window_text};
+                padding: 5px;
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {self.theme_colors.border_color};
+                border-radius: 3px;
+                background-color: {self.theme_colors.button_bg};
+            }}
+            QCheckBox::indicator:hover {{
+                border: 2px solid {self.theme_colors.window_text};
+                background-color: {self.theme_colors.hover_color};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: #4CAF50;
+                border: 2px solid #4CAF50;
+                image: none;
+            }}
+            QCheckBox::indicator:checked:hover {{
+                background-color: #45a049;
+                border: 2px solid #45a049;
+            }}
+        """)
+        layout.addWidget(self.bold_checkbox)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("OK")
+        ok_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        ok_btn.clicked.connect(self.accept)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(ok_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+    
+    def choose_bg_color(self):
+        color = QColorDialog.getColor(self.bg_color, self, "Choose Background Color")
+        if color.isValid():
+            self.bg_color = color
+            self.bg_color_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {color.name()};
+                    color: {'#000000' if color.lightness() > 128 else '#ffffff'};
+                    border: 1px solid {self.theme_colors.border_color};
+                    padding: 8px;
+                    border-radius: 3px;
+                }}
+                QPushButton:hover {{
+                    border: 2px solid {self.theme_colors.border_color};
+                }}
+            """)
+    
+    def choose_text_color(self):
+        initial_color = self.text_color if self.text_color else QColor(0, 0, 0)
+        color = QColorDialog.getColor(initial_color, self, "Choose Text Color")
+        if color.isValid():
+            self.text_color = color
+            self.update_text_color_button()
+    
+    def clear_text_color(self):
+        self.text_color = None
+        self.update_text_color_button()
+    
+    def update_text_color_button(self):
+        if self.text_color:
+            self.text_color_btn.setText(f"Text Color: {self.text_color.name()}")
+            self.text_color_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {self.text_color.name()};
+                    color: {'#000000' if self.text_color.lightness() > 128 else '#ffffff'};
+                    border: 1px solid {self.theme_colors.border_color};
+                    padding: 8px;
+                    border-radius: 3px;
+                }}
+                QPushButton:hover {{
+                    border: 2px solid {self.theme_colors.border_color};
+                }}
+            """)
+        else:
+            self.text_color_btn.setText("Auto Text Color")
+            self.text_color_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {self.theme_colors.button_bg};
+                    color: {self.theme_colors.button_text};
+                    border: 1px solid {self.theme_colors.border_color};
+                    padding: 8px;
+                    border-radius: 3px;
+                }}
+                QPushButton:hover {{
+                    background-color: {self.theme_colors.hover_color};
+                }}
+            """)
+    
+    def get_result(self):
+        result = {
+            'term': self.term_edit.text(),
+            'color': self.bg_color.name(),
+            'bold': self.bold_checkbox.isChecked()
+        }
+        if self.text_color:
+            result['text_color'] = self.text_color.name()
+        return result
+
 class ConfigDialog(QDialog):
     def __init__(self, parent=None, highlight_terms=None):
         super().__init__(parent)
@@ -890,43 +1153,33 @@ class ConfigDialog(QDialog):
             if isinstance(term, dict):
                 display_text = term['term']
                 if 'color' in term:
-                    display_text += f" (Color: {term['color']})"
+                    display_text += f" (Bg: {term['color']})"
+                if 'text_color' in term:
+                    display_text += f" (Text: {term['text_color']})"
+                if term.get('bold', False):
+                    display_text += " (Bold)"
                 self.terms_list.addItem(display_text)
             else:
                 self.terms_list.addItem(term)
     
     def add_term(self):
-        term, ok = QInputDialog.getText(self, "Add Term", "Enter term to highlight:")
-        if ok and term:
-            color_dialog = QColorDialog(self)
-            color_dialog.setStyleSheet(f"""
-                QColorDialog {{
-                    background-color: {self.theme_colors.window_bg};
-                    color: {self.theme_colors.window_text};
-                }}
-            """)
-            
-            # Use try/except to handle different PyQt versions for dialog execution
+        dialog = TermFormatDialog(self)
+        
+        # Use try/except to handle different PyQt versions for dialog execution
+        try:
+            result = dialog.exec()
+        except AttributeError:
             try:
-                result = color_dialog.exec()
+                result = dialog.exec_()
             except AttributeError:
-                # For PyQt6 < 6.0
-                try:
-                    result = color_dialog.exec_()
-                except AttributeError:
-                    result = QtConstants.Rejected
-                    print("Warning: Could not execute color dialog.")
-            
-            if result == QtConstants.Accepted:
-                color = color_dialog.selectedColor()
-                color_hex = color.name()
-                self.highlight_terms.append({
-                    'term': term,
-                    'color': color_hex
-                })
-            else:
-                self.highlight_terms.append(term)
-            self.update_terms_list()
+                result = QtConstants.Rejected
+                print("Warning: Could not execute format dialog.")
+        
+        if result == QtConstants.Accepted:
+            term_data = dialog.get_result()
+            if term_data['term']:  # Only add if term is not empty
+                self.highlight_terms.append(term_data)
+                self.update_terms_list()
     
     def edit_term(self):
         current_row = self.terms_list.currentRow()
@@ -935,47 +1188,33 @@ class ConfigDialog(QDialog):
             
             if isinstance(current_term, dict):
                 term = current_term['term']
-                current_color = current_term.get('color', None)
+                bg_color = current_term.get('color', None)
+                text_color = current_term.get('text_color', None)
+                bold = current_term.get('bold', False)
             else:
                 term = current_term
-                current_color = None
-                
-            new_term, ok = QInputDialog.getText(self, "Edit Term", 
-                                              "Edit term to highlight:", 
-                                              text=term)
-            if ok and new_term:
-                color_dialog = QColorDialog(self)
-                color_dialog.setStyleSheet(f"""
-                    QColorDialog {{
-                        background-color: {self.theme_colors.window_bg};
-                        color: {self.theme_colors.window_text};
-                    }}
-                """)
-                if current_color:
-                    color_dialog.setCurrentColor(QColor(current_color))
-                
-                # Use try/except to handle different PyQt versions for dialog execution
+                bg_color = None
+                text_color = None
+                bold = False
+            
+            dialog = TermFormatDialog(self, term=term, bg_color=bg_color, 
+                                    text_color=text_color, bold=bold)
+            
+            # Use try/except to handle different PyQt versions for dialog execution
+            try:
+                result = dialog.exec()
+            except AttributeError:
                 try:
-                    result = color_dialog.exec()
+                    result = dialog.exec_()
                 except AttributeError:
-                    # For PyQt6 < 6.0
-                    try:
-                        result = color_dialog.exec_()
-                    except AttributeError:
-                        result = QtConstants.Rejected
-                        print("Warning: Could not execute color dialog.")
-                
-                if result == QtConstants.Accepted:
-                    color = color_dialog.selectedColor()
-                    color_hex = color.name()
-                    self.highlight_terms[current_row] = {
-                        'term': new_term,
-                        'color': color_hex
-                    }
-                else:
-                    self.highlight_terms[current_row] = new_term
-                    
-                self.update_terms_list()
+                    result = QtConstants.Rejected
+                    print("Warning: Could not execute format dialog.")
+            
+            if result == QtConstants.Accepted:
+                term_data = dialog.get_result()
+                if term_data['term']:  # Only update if term is not empty
+                    self.highlight_terms[current_row] = term_data
+                    self.update_terms_list()
     
     def remove_term(self):
         current_row = self.terms_list.currentRow()

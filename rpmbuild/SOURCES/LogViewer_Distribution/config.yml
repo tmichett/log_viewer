@@ -1,9 +1,21 @@
 highlight_terms: 
+  # Simple terms for basic highlighting
   - warn
   - err
-  - fatal
-  - alert
-  - fail
-  - installing
-  - term: running
-    color: "#FF0000"
+  # Enhanced formatting examples
+  - term: "fatal"
+    color: "#FF0000"      # Red background
+    text_color: "#FFFFFF" # White text
+    bold: true
+  - term: "alert"
+    color: "#FFAA00"      # Orange background
+    text_color: "#000000" # Black text
+  - term: "fail"
+    color: "#800080"      # Purple background
+    bold: true            # Bold with auto text color
+  - term: "installing"
+    text_color: "#00FF00" # Green text only
+  - term: "running"
+    color: "#0066CC"      # Blue background
+    text_color: "#FFFF00" # Yellow text
+    bold: true
