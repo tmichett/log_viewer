@@ -6,6 +6,7 @@ import argparse
 import time
 import warnings
 import platform
+from enum import Enum
 
 # Suppress deprecation warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -59,6 +60,124 @@ def get_monospace_font():
     
     # Return the first font in the list (CSS will fall back to next if not available)
     return ', '.join(fonts)
+
+# Theme system
+class ThemeMode(Enum):
+    SYSTEM = "system"
+    LIGHT = "light"
+    DARK = "dark"
+
+class ThemeColors:
+    def __init__(self, 
+                 window_bg="#ffffff", 
+                 window_text="#000000", 
+                 base_bg="#ffffff", 
+                 alt_base_bg="#f5f5f5", 
+                 text_color="#000000", 
+                 button_bg="#e1e1e1", 
+                 button_text="#000000", 
+                 border_color="#c0c0c0",
+                 hover_color="#d0d0d0",
+                 pressed_color="#b0b0b0",
+                 editor_bg="#ffffff",
+                 editor_text="#000000",
+                 highlight_bg="#3399ff",
+                 highlight_text="#ffffff",
+                 menu_bg="#ffffff",
+                 menu_text="#000000",
+                 menu_hover="#e0e0e0"):
+        self.window_bg = window_bg
+        self.window_text = window_text
+        self.base_bg = base_bg
+        self.alt_base_bg = alt_base_bg
+        self.text_color = text_color
+        self.button_bg = button_bg
+        self.button_text = button_text
+        self.border_color = border_color
+        self.hover_color = hover_color
+        self.pressed_color = pressed_color
+        self.editor_bg = editor_bg
+        self.editor_text = editor_text
+        self.highlight_bg = highlight_bg
+        self.highlight_text = highlight_text
+        self.menu_bg = menu_bg
+        self.menu_text = menu_text
+        self.menu_hover = menu_hover
+
+# Predefined theme configurations
+THEME_LIGHT = ThemeColors(
+    window_bg="#ffffff",
+    window_text="#000000",
+    base_bg="#ffffff",
+    alt_base_bg="#f5f5f5",
+    text_color="#000000",
+    button_bg="#e1e1e1",
+    button_text="#000000",
+    border_color="#c0c0c0",
+    hover_color="#d0d0d0",
+    pressed_color="#b0b0b0",
+    editor_bg="#ffffff",
+    editor_text="#000000",
+    highlight_bg="#3399ff",
+    highlight_text="#ffffff",
+    menu_bg="#ffffff",
+    menu_text="#000000",
+    menu_hover="#e0e0e0"
+)
+
+THEME_DARK = ThemeColors(
+    window_bg="#2b2b2b",
+    window_text="#ffffff",
+    base_bg="#2b2b2b",
+    alt_base_bg="#3f3f3f",
+    text_color="#ffffff",
+    button_bg="#3f3f3f",
+    button_text="#ffffff",
+    border_color="#555555",
+    hover_color="#4f4f4f",
+    pressed_color="#2f2f2f",
+    editor_bg="#2b2b2b",
+    editor_text="#ffffff",
+    highlight_bg="#42a5f5",
+    highlight_text="#ffffff",
+    menu_bg="#3f3f3f",
+    menu_text="#ffffff",
+    menu_hover="#4f4f4f"
+)
+
+def detect_system_theme():
+    """Detect if the system is using a dark theme"""
+    try:
+        # Get the default application palette
+        app = QApplication.instance()
+        if app:
+            palette = app.palette()
+            # Check the window background color lightness
+            window_color = palette.color(QPalette.ColorRole.Window)
+            lightness = window_color.lightness()
+            # If lightness < 128, it's likely a dark theme
+            return lightness < 128
+        else:
+            # Fallback: create a temporary QApplication to check system palette
+            temp_app = QApplication([])
+            palette = temp_app.palette()
+            window_color = palette.color(QPalette.ColorRole.Window)
+            lightness = window_color.lightness()
+            temp_app.quit()
+            return lightness < 128
+    except Exception as e:
+        print(f"Error detecting system theme: {e}")
+        # Default to light theme if detection fails
+        return False
+
+def get_theme_colors(theme_mode):
+    """Get theme colors based on the selected mode"""
+    if theme_mode == ThemeMode.SYSTEM:
+        return THEME_DARK if detect_system_theme() else THEME_LIGHT
+    elif theme_mode == ThemeMode.DARK:
+        return THEME_DARK
+    else:  # LIGHT
+        return THEME_LIGHT
 
 # Cross-platform configuration path handling
 def get_config_path():
@@ -246,8 +365,14 @@ class HelpDialog(QDialog):
         self.setWindowTitle("Log Viewer Help")
         self.resize(800, 600)
         
-        # Set dark mode
-        palette = self.parent().palette()
+        # Use parent's theme
+        if parent and hasattr(parent, 'current_theme_colors'):
+            self.theme_colors = parent.current_theme_colors
+        else:
+            self.theme_colors = get_theme_colors(ThemeMode.SYSTEM)
+        
+        # Set palette from theme
+        palette = self.parent().palette() if parent else QPalette()
         self.setPalette(palette)
         
         layout = QVBoxLayout(self)
@@ -256,9 +381,9 @@ class HelpDialog(QDialog):
         self.help_browser = QTextBrowser()
         self.help_browser.setStyleSheet(f"""
             QTextBrowser {{
-                background-color: #2b2b2b;
-                color: #ffffff;
-                border: 1px solid #3f3f3f;
+                background-color: {self.theme_colors.editor_bg};
+                color: {self.theme_colors.editor_text};
+                border: 1px solid {self.theme_colors.border_color};
                 font-family: {get_monospace_font()};
                 font-size: 12pt;
             }}
@@ -271,18 +396,18 @@ class HelpDialog(QDialog):
         
         # Close button
         close_btn = QPushButton("Close")
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3f3f3f;
-                color: white;
-                border: 1px solid #555555;
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
                 padding: 8px;
                 border-radius: 3px;
                 min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #4f4f4f;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
         """)
         close_btn.clicked.connect(self.accept)
         
@@ -293,18 +418,28 @@ class HelpDialog(QDialog):
     
     def load_help_content(self):
         """Load help content from file or provide built-in content"""
-        help_content = """
+        # Determine header colors based on theme
+        if self.theme_colors.editor_bg == "#2b2b2b":  # Dark theme
+            h1_color = "#4a9eff"
+            h2_color = "#6ab7ff"
+            h3_color = "#8ac5ff"
+        else:  # Light theme
+            h1_color = "#1976d2"
+            h2_color = "#1e88e5"
+            h3_color = "#42a5f5"
+        
+        help_content = f"""
         <html>
         <head>
             <style>
-                body { font-family: monospace; color: #ffffff; background-color: #2b2b2b; }
-                h1 { color: #4a9eff; }
-                h2 { color: #6ab7ff; }
-                h3 { color: #8ac5ff; }
-                code { background-color: #3f3f3f; padding: 2px 4px; border-radius: 2px; }
-                pre { background-color: #3f3f3f; padding: 10px; border-radius: 5px; }
-                ul { margin-left: 20px; }
-                li { margin-bottom: 5px; }
+                body {{ font-family: monospace; color: {self.theme_colors.editor_text}; background-color: {self.theme_colors.editor_bg}; }}
+                h1 {{ color: {h1_color}; }}
+                h2 {{ color: {h2_color}; }}
+                h3 {{ color: {h3_color}; }}
+                code {{ background-color: {self.theme_colors.alt_base_bg}; color: {self.theme_colors.text_color}; padding: 2px 4px; border-radius: 2px; }}
+                pre {{ background-color: {self.theme_colors.alt_base_bg}; color: {self.theme_colors.text_color}; padding: 10px; border-radius: 5px; }}
+                ul {{ margin-left: 20px; }}
+                li {{ margin-bottom: 5px; }}
             </style>
         </head>
         <body>
@@ -424,8 +559,14 @@ class AboutDialog(QDialog):
         self.setWindowTitle("About Log Viewer")
         self.resize(350, 200)
         
-        # Set dark mode
-        palette = self.parent().palette()
+        # Use parent's theme
+        if parent and hasattr(parent, 'current_theme_colors'):
+            self.theme_colors = parent.current_theme_colors
+        else:
+            self.theme_colors = get_theme_colors(ThemeMode.SYSTEM)
+        
+        # Set palette from theme
+        palette = self.parent().palette() if parent else QPalette()
         self.setPalette(palette)
         
         layout = QVBoxLayout(self)
@@ -916,6 +1057,10 @@ class LogViewer(QMainWindow):
         self.current_file = None
         self.total_content = ""
         
+        # Theme system
+        self.current_theme_mode = ThemeMode.SYSTEM
+        self.current_theme_colors = get_theme_colors(self.current_theme_mode)
+        
         # Initialize thread pool for background tasks
         self.threadpool = QThreadPool()
         print(f"Maximum thread count: {self.threadpool.maxThreadCount()}")
@@ -926,40 +1071,18 @@ class LogViewer(QMainWindow):
         # Create keyboard shortcuts
         self.create_shortcuts()
 
-        self.set_dark_mode()
-
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
 
         # Create optimized text editor
         self.text_editor = OptimizedTextEdit()
-        self.text_editor.setStyleSheet(f"""
-            QPlainTextEdit {{
-                background-color: #2b2b2b;
-                color: #ffffff;
-                border: 1px solid #3f3f3f;
-                font-size: {self.current_font_size}pt;
-                font-family: {get_monospace_font()};
-            }}
-        """)
+        # Style will be applied by theme system
         layout.addWidget(self.text_editor)
         
         # Add progress bar for file loading
         self.progress_bar = QProgressBar()
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: 1px solid #555555;
-                border-radius: 3px;
-                text-align: center;
-                background-color: #2b2b2b;
-                color: white;
-            }
-            QProgressBar::chunk {
-                background-color: #3f7fbf;
-                width: 10px;
-            }
-        """)
+        # Style will be applied by theme system
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
 
@@ -974,15 +1097,7 @@ class LogViewer(QMainWindow):
         search_layout.addWidget(search_label)
         
         self.search_input = QLineEdit()
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                background-color: #3f3f3f;
-                color: white;
-                border: 1px solid #555555;
-                padding: 5px;
-                border-radius: 3px;
-            }
-        """)
+        # Style will be applied by theme system
         self.search_input.returnPressed.connect(self.find_first)
         # Add keyboard shortcut for search
         self.search_input.setToolTip("Press Ctrl+F to focus search box")
@@ -1166,8 +1281,11 @@ class LogViewer(QMainWindow):
         layout.addLayout(file_layout)
 
         self.status_label = QLabel("Ready")
-        self.status_label.setStyleSheet("color: white;")
+        # Style will be applied by theme system
         layout.addWidget(self.status_label)
+
+        # Apply initial theme after all UI elements are created
+        self.apply_theme()
 
         self.load_config()
         
@@ -1179,34 +1297,7 @@ class LogViewer(QMainWindow):
     def create_menu_bar(self):
         """Create the menu bar with File and Help menus"""
         menubar = self.menuBar()
-        menubar.setStyleSheet("""
-            QMenuBar {
-                background-color: #3f3f3f;
-                color: white;
-                border: 1px solid #555555;
-            }
-            QMenuBar::item {
-                background-color: #3f3f3f;
-                color: white;
-                padding: 4px 8px;
-            }
-            QMenuBar::item:selected {
-                background-color: #4f4f4f;
-            }
-            QMenu {
-                background-color: #3f3f3f;
-                color: white;
-                border: 1px solid #555555;
-            }
-            QMenu::item {
-                background-color: #3f3f3f;
-                color: white;
-                padding: 4px 20px;
-            }
-            QMenu::item:selected {
-                background-color: #4f4f4f;
-            }
-        """)
+        # Style will be applied by theme system
         
         # File menu
         file_menu = menubar.addMenu("File")
@@ -1222,6 +1313,42 @@ class LogViewer(QMainWindow):
         exit_action = file_menu.addAction("Exit")
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.close)
+        
+        # View menu
+        view_menu = menubar.addMenu("View")
+        
+        # Theme submenu
+        theme_menu = view_menu.addMenu("Theme")
+        
+        # Theme options
+        system_theme_action = theme_menu.addAction("System Default")
+        system_theme_action.setCheckable(True)
+        system_theme_action.triggered.connect(lambda: self.change_theme(ThemeMode.SYSTEM))
+        
+        light_theme_action = theme_menu.addAction("Light")
+        light_theme_action.setCheckable(True)
+        light_theme_action.triggered.connect(lambda: self.change_theme(ThemeMode.LIGHT))
+        
+        dark_theme_action = theme_menu.addAction("Dark")
+        dark_theme_action.setCheckable(True)
+        dark_theme_action.triggered.connect(lambda: self.change_theme(ThemeMode.DARK))
+        
+        # Create action group for exclusive selection
+        from PyQt6.QtGui import QActionGroup
+        self.theme_action_group = QActionGroup(self)
+        self.theme_action_group.addAction(system_theme_action)
+        self.theme_action_group.addAction(light_theme_action)
+        self.theme_action_group.addAction(dark_theme_action)
+        
+        # Store theme actions for later reference
+        self.theme_actions = {
+            ThemeMode.SYSTEM: system_theme_action,
+            ThemeMode.LIGHT: light_theme_action,
+            ThemeMode.DARK: dark_theme_action
+        }
+        
+        # Set initial theme selection
+        self.theme_actions[self.current_theme_mode].setChecked(True)
         
         # Help menu
         help_menu = menubar.addMenu("Help")
@@ -1276,22 +1403,188 @@ class LogViewer(QMainWindow):
         self.current_search_index = -1
         self.status_label.setText("Search cleared")
 
-    def set_dark_mode(self):
-        # Set dark mode palette for the main window
+    def apply_theme(self):
+        """Apply the current theme to all UI elements"""
+        # Get current theme colors
+        colors = get_theme_colors(self.current_theme_mode)
+        self.current_theme_colors = colors
+        
+        # Set palette for the main window
         palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(43, 43, 43))
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(255, 255, 255))
-        palette.setColor(QPalette.ColorRole.Base, QColor(43, 43, 43))
-        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
-        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 255))
-        palette.setColor(QPalette.ColorRole.ToolTipText, QColor(255, 255, 255))
-        palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))
-        palette.setColor(QPalette.ColorRole.Button, QColor(63, 63, 63))
-        palette.setColor(QPalette.ColorRole.ButtonText, QColor(255, 255, 255))
-        palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
-        palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
-        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
+        palette.setColor(QPalette.ColorRole.Window, QColor(colors.window_bg))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(colors.window_text))
+        palette.setColor(QPalette.ColorRole.Base, QColor(colors.base_bg))
+        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(colors.alt_base_bg))
+        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(colors.base_bg))
+        palette.setColor(QPalette.ColorRole.ToolTipText, QColor(colors.text_color))
+        palette.setColor(QPalette.ColorRole.Text, QColor(colors.text_color))
+        palette.setColor(QPalette.ColorRole.Button, QColor(colors.button_bg))
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor(colors.button_text))
+        palette.setColor(QPalette.ColorRole.Link, QColor(colors.highlight_bg))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(colors.highlight_bg))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(colors.highlight_text))
         self.setPalette(palette)
+        
+        # Update all UI elements with themed styles
+        self.update_ui_styles()
+    
+    def update_ui_styles(self):
+        """Update all UI element styles with current theme"""
+        colors = self.current_theme_colors
+        
+        # Update text editor style
+        self.text_editor.setStyleSheet(f"""
+            QPlainTextEdit {{
+                background-color: {colors.editor_bg};
+                color: {colors.editor_text};
+                border: 1px solid {colors.border_color};
+                font-size: {self.current_font_size}pt;
+                font-family: {get_monospace_font()};
+            }}
+        """)
+        
+        # Update progress bar style
+        self.progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                border: 1px solid {colors.border_color};
+                border-radius: 3px;
+                text-align: center;
+                background-color: {colors.base_bg};
+                color: {colors.text_color};
+            }}
+            QProgressBar::chunk {{
+                background-color: {colors.highlight_bg};
+                width: 10px;
+            }}
+        """)
+        
+        # Update search input style
+        self.search_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {colors.button_bg};
+                color: {colors.button_text};
+                border: 1px solid {colors.border_color};
+                padding: 5px;
+                border-radius: 3px;
+            }}
+        """)
+        
+        # Update all buttons with themed style
+        button_style = f"""
+            QPushButton {{
+                background-color: {colors.button_bg};
+                color: {colors.button_text};
+                border: 1px solid {colors.border_color};
+                padding: 5px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {colors.hover_color};
+            }}
+            QPushButton:pressed {{
+                background-color: {colors.pressed_color};
+            }}
+        """
+        
+        # Apply to all buttons in the main window
+        for button in self.findChildren(QPushButton):
+            button.setStyleSheet(button_style)
+        
+        # Update status label style
+        self.status_label.setStyleSheet(f"color: {colors.text_color};")
+        
+        # Update font size display style
+        self.font_size_display.setStyleSheet(f"""
+            color: {colors.text_color};
+            padding: 0 10px;
+        """)
+        
+        # Update menu bar style
+        self.menuBar().setStyleSheet(f"""
+            QMenuBar {{
+                background-color: {colors.menu_bg};
+                color: {colors.menu_text};
+                border: 1px solid {colors.border_color};
+            }}
+            QMenuBar::item {{
+                background-color: {colors.menu_bg};
+                color: {colors.menu_text};
+                padding: 4px 8px;
+            }}
+            QMenuBar::item:selected {{
+                background-color: {colors.menu_hover};
+            }}
+            QMenu {{
+                background-color: {colors.menu_bg};
+                color: {colors.menu_text};
+                border: 1px solid {colors.border_color};
+            }}
+            QMenu::item {{
+                background-color: {colors.menu_bg};
+                color: {colors.menu_text};
+                padding: 4px 20px;
+            }}
+            QMenu::item:selected {{
+                background-color: {colors.menu_hover};
+            }}
+        """)
+        
+        # Update all labels
+        for label in self.findChildren(QLabel):
+            if label != self.font_size_display:  # Skip font size display as it has special styling
+                label.setStyleSheet(f"color: {colors.text_color};")
+    
+    def set_theme_mode(self, theme_mode):
+        """Set the theme mode and apply the theme"""
+        if isinstance(theme_mode, str):
+            try:
+                theme_mode = ThemeMode(theme_mode)
+            except ValueError:
+                theme_mode = ThemeMode.SYSTEM
+        
+        self.current_theme_mode = theme_mode
+        self.apply_theme()
+    
+    def change_theme(self, theme_mode):
+        """Change theme and update UI, called from menu actions"""
+        self.set_theme_mode(theme_mode)
+        
+        # Update menu selection
+        for mode, action in self.theme_actions.items():
+            action.setChecked(mode == theme_mode)
+        
+        # Save theme preference to config
+        self.save_app_config()
+        
+        self.status_label.setText(f"Theme changed to {theme_mode.value}")
+    
+    def save_app_config(self):
+        """Save application configuration including theme preference"""
+        try:
+            # Load existing config or create new one
+            config = {}
+            if os.path.exists(self.config_path):
+                try:
+                    with open(self.config_path, 'r', encoding='utf-8') as f:
+                        config = yaml.safe_load(f) or {}
+                except Exception:
+                    config = {}
+            
+            # Update theme preference
+            config['theme'] = self.current_theme_mode.value
+            
+            # Preserve highlight terms if they exist
+            if self.highlight_terms:
+                config['highlight_terms'] = self.highlight_terms
+            
+            # Save config
+            os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                yaml.dump(config, f, default_flow_style=False)
+                
+        except Exception as e:
+            print(f"Error saving config: {e}")
+            self.status_label.setText(f"Error saving configuration: {e}")
 
     def find_first(self):
         """Initiate a new search from the beginning of the document"""
@@ -1540,7 +1833,15 @@ class LogViewer(QMainWindow):
                     if 'highlight_terms' in config:
                         self.highlight_terms = config['highlight_terms']
                         self.highlighter.set_highlight_terms(self.highlight_terms)
-                        self.status_label.setText(f"Config loaded from {self.config_path}")
+                    
+                    # Load theme preference if present
+                    if 'theme' in config:
+                        try:
+                            self.current_theme_mode = ThemeMode(config['theme'])
+                        except (ValueError, KeyError):
+                            self.current_theme_mode = ThemeMode.SYSTEM
+                    
+                    self.status_label.setText(f"Config loaded from {self.config_path}")
             else:
                 # Load default config if no custom config exists
                 default_config_path = 'config.yml'
@@ -1550,10 +1851,30 @@ class LogViewer(QMainWindow):
                         if 'highlight_terms' in config:
                             self.highlight_terms = config['highlight_terms']
                             self.highlighter.set_highlight_terms(self.highlight_terms)
-                            self.status_label.setText("Default config loaded")
+                        
+                        # Load theme preference if present in default config
+                        if 'theme' in config:
+                            try:
+                                self.current_theme_mode = ThemeMode(config['theme'])
+                            except (ValueError, KeyError):
+                                self.current_theme_mode = ThemeMode.SYSTEM
+                        
+                        self.status_label.setText("Default config loaded")
+                        
+            # Apply the loaded (or default) theme
+            self.apply_theme()
+            
+            # Update theme menu selection if it exists
+            if hasattr(self, 'theme_actions'):
+                for mode, action in self.theme_actions.items():
+                    action.setChecked(mode == self.current_theme_mode)
+                    
         except Exception as e:
             self.status_label.setText(f"Error loading config: {e}")
             print(f"Error loading config: {e}")
+            # Apply default theme on error
+            self.current_theme_mode = ThemeMode.SYSTEM
+            self.apply_theme()
 
     def load_custom_config(self):
         file_name, _ = QFileDialog.getOpenFileName(
