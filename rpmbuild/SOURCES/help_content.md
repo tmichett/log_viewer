@@ -45,12 +45,21 @@
 ### Term Formatting Dialog
 The enhanced formatting dialog provides complete control over text appearance:
 - **Term**: Enter the text to highlight
-- **Background Color**: Choose highlight background color using color picker
+- **Background Color**: Multiple selection options:
+  - **Smart Colors**: Dropdown with intelligent color suggestions:
+    - **Auto**: Automatically selects color based on term content (e.g., red for "ERROR", orange for "WARNING")
+    - **Error**: Red background for error-related terms
+    - **Warning**: Orange background for warning-related terms
+    - **Info**: Blue background for informational terms
+    - **Success**: Green background for success-related terms
+    - **Debug**: Gray background for debug/trace terms
+  - **Custom Color**: Choose any color using the color picker
 - **Text Color**: 
   - Select custom text color with color picker
   - Use "Auto" for automatic color selection based on background brightness
 - **Bold Text**: Check to make highlighted text bold
 - **Preview**: Buttons show live preview of your formatting choices
+- **Smart Suggestions**: As you type the term, the "Auto" option updates to show the suggested color
 
 ### Formatting Priority
 - Custom text color overrides automatic color selection
@@ -58,12 +67,19 @@ The enhanced formatting dialog provides complete control over text appearance:
 - Bold formatting applies independently of color choices
 
 ### Common Formatting Examples
-- **Error Messages**: Red background + white text + bold for maximum visibility
-- **Warnings**: Yellow/orange background + black text for clear contrast
-- **Success Messages**: Green text only (no background) + bold for subtle emphasis
-- **Debug Info**: Default background + custom text color for categorization
-- **Critical Issues**: Dark red background + auto text color + bold for urgency
+#### Using Smart Colors
+- **Error Messages**: Use "Error" preset (red background) + auto text + bold
+- **Warnings**: Use "Warning" preset (orange background) + auto text
+- **Success Messages**: Use "Success" preset (green background) + auto text + bold
+- **Information**: Use "Info" preset (blue background) + auto text
+- **Debug Output**: Use "Debug" preset (gray background) + auto text
+- **Auto Detection**: Type "ERROR", "WARNING", etc., and use "Auto" for intelligent color selection
+
+#### Using Custom Colors
+- **Critical Issues**: Custom dark red background + auto text color + bold for urgency
 - **Status Updates**: Custom text colors to categorize different types of status messages
+- **Department Codes**: Custom colors to match organizational color schemes
+- **Severity Levels**: Gradient of colors from green (low) to red (high) severity
 
 ## Configuration
 

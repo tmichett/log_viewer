@@ -868,7 +868,7 @@ class TermFormatDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Term Formatting")
         self.setModal(True)
-        self.resize(400, 300)
+        self.resize(450, 350)  # Increased size for new UI elements
         
         # Get theme colors from parent
         if parent and hasattr(parent, 'theme_colors'):
@@ -913,28 +913,68 @@ class TermFormatDialog(QDialog):
                 border-radius: 3px;
             }}
         """)
+        # Connect text change to smart color suggestions
+        self.term_edit.textChanged.connect(self.on_term_text_changed)
         term_layout.addWidget(self.term_edit)
         layout.addLayout(term_layout)
         
         # Background color
-        bg_layout = QHBoxLayout()
-        bg_layout.addWidget(QLabel("Background Color:"))
-        self.bg_color_btn = QPushButton("Choose Color")
-        self.bg_color = QColor(bg_color) if bg_color else QColor(100, 149, 237)
-        self.bg_color_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {self.bg_color.name()};
-                color: {'#000000' if self.bg_color.lightness() > 128 else '#ffffff'};
+        bg_layout = QVBoxLayout()
+        bg_label_layout = QHBoxLayout()
+        bg_label_layout.addWidget(QLabel("Background Color:"))
+        bg_layout.addLayout(bg_label_layout)
+        
+        # Color selection buttons layout
+        color_buttons_layout = QHBoxLayout()
+        
+        # Auto/Smart color presets
+        self.smart_colors = {
+            'Auto': None,  # Will be determined by term content
+            'Error': '#FF4444',    # Red for errors
+            'Warning': '#FFA500',  # Orange for warnings 
+            'Info': '#4A90E2',     # Blue for info
+            'Success': '#28A745',  # Green for success
+            'Debug': '#6C757D'     # Gray for debug
+        }
+        
+        # Add smart color buttons
+        from PyQt6.QtWidgets import QComboBox
+        self.bg_preset_combo = QComboBox()
+        self.bg_preset_combo.addItem("Smart Colors...")
+        for preset_name in self.smart_colors.keys():
+            self.bg_preset_combo.addItem(preset_name)
+        
+        self.bg_preset_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
                 border: 1px solid {self.theme_colors.border_color};
-                padding: 8px;
+                padding: 5px;
                 border-radius: 3px;
+                min-width: 100px;
             }}
-            QPushButton:hover {{
-                border: 2px solid {self.theme_colors.border_color};
+            QComboBox:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+            }}
+            QComboBox::down-arrow {{
+                width: 12px;
+                height: 12px;
             }}
         """)
+        self.bg_preset_combo.currentTextChanged.connect(self.on_preset_color_changed)
+        color_buttons_layout.addWidget(self.bg_preset_combo)
+        
+        # Custom color picker button
+        self.bg_color_btn = QPushButton("Custom Color")
+        self.bg_color = QColor(bg_color) if bg_color else QColor(100, 149, 237)
+        self.update_bg_color_button()
         self.bg_color_btn.clicked.connect(self.choose_bg_color)
-        bg_layout.addWidget(self.bg_color_btn)
+        color_buttons_layout.addWidget(self.bg_color_btn)
+        
+        bg_layout.addLayout(color_buttons_layout)
         layout.addLayout(bg_layout)
         
         # Text color
@@ -1051,23 +1091,89 @@ class TermFormatDialog(QDialog):
         button_layout.addWidget(ok_btn)
         button_layout.addWidget(cancel_btn)
         layout.addLayout(button_layout)
+        
+        # Initialize color button appearance and smart suggestions
+        self.update_bg_color_button()
+        self.on_term_text_changed()  # Set initial smart color suggestion
+    
+    def on_preset_color_changed(self, preset_name):
+        """Handle preset color selection from combo box"""
+        if preset_name == "Smart Colors...":
+            return
+            
+        if preset_name == "Auto":
+            # Determine color based on term content
+            self.bg_color = self.determine_smart_color()
+        elif preset_name in self.smart_colors:
+            color_hex = self.smart_colors[preset_name]
+            if color_hex:
+                self.bg_color = QColor(color_hex)
+        
+        self.update_bg_color_button()
+        # Reset combo box to default
+        self.bg_preset_combo.setCurrentIndex(0)
+    
+    def determine_smart_color(self):
+        """Determine appropriate color based on term content"""
+        term_lower = self.term_edit.text().lower()
+        
+        # Check for common log level patterns
+        if any(keyword in term_lower for keyword in ['error', 'err', 'fatal', 'critical', 'fail']):
+            return QColor('#FF4444')  # Red
+        elif any(keyword in term_lower for keyword in ['warning', 'warn', 'caution']):
+            return QColor('#FFA500')  # Orange
+        elif any(keyword in term_lower for keyword in ['success', 'complete', 'done', 'ok']):
+            return QColor('#28A745')  # Green
+        elif any(keyword in term_lower for keyword in ['info', 'information']):
+            return QColor('#4A90E2')  # Blue
+        elif any(keyword in term_lower for keyword in ['debug', 'trace', 'verbose']):
+            return QColor('#6C757D')  # Gray
+        else:
+            return QColor(100, 149, 237)  # Default cornflower blue
+    
+    def on_term_text_changed(self):
+        """Handle term text changes to suggest smart colors"""
+        # Update the "Auto" option in the combo box with suggested color info
+        suggested_color = self.determine_smart_color()
+        color_name = self.get_color_name(suggested_color)
+        
+        # Update the Auto option text to show the suggested color
+        auto_index = self.bg_preset_combo.findText("Auto")
+        if auto_index >= 0:
+            self.bg_preset_combo.setItemText(auto_index, f"Auto ({color_name})")
+    
+    def get_color_name(self, color):
+        """Get a human-readable name for a color"""
+        color_hex = color.name().upper()
+        color_map = {
+            '#FF4444': 'Red',
+            '#FFA500': 'Orange', 
+            '#28A745': 'Green',
+            '#4A90E2': 'Blue',
+            '#6C757D': 'Gray'
+        }
+        return color_map.get(color_hex, 'Default')
+    
+    def update_bg_color_button(self):
+        """Update the background color button appearance"""
+        self.bg_color_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.bg_color.name()};
+                color: {'#000000' if self.bg_color.lightness() > 128 else '#ffffff'};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                border: 2px solid {self.theme_colors.border_color};
+            }}
+        """)
     
     def choose_bg_color(self):
         color = QColorDialog.getColor(self.bg_color, self, "Choose Background Color")
         if color.isValid():
             self.bg_color = color
-            self.bg_color_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {color.name()};
-                    color: {'#000000' if color.lightness() > 128 else '#ffffff'};
-                    border: 1px solid {self.theme_colors.border_color};
-                    padding: 8px;
-                    border-radius: 3px;
-                }}
-                QPushButton:hover {{
-                    border: 2px solid {self.theme_colors.border_color};
-                }}
-            """)
+            self.update_bg_color_button()
     
     def choose_text_color(self):
         initial_color = self.text_color if self.text_color else QColor(0, 0, 0)
