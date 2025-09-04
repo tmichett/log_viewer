@@ -60,8 +60,10 @@ The application requires the following Python packages:
 # Install the RPM package (replace VERSION with current version)
 sudo rpm -ivh LogViewer-VERSION-0.rpm
 
-# Launch the application
-logviewer
+# Launch the application (multiple methods available):
+LogViewer              # Using convenient symbolic link (recommended)
+/opt/LogViewer/log_viewer_start.sh  # Direct script execution
+# Or through desktop environment via installed .desktop file
 ```
 
 ##### macOS (DMG - Recommended)
@@ -180,11 +182,18 @@ pyinstaller LogViewer.spec
 # Open specific file
 log_viewer /path/to/file.log
 
+# If installed via RPM, you can also use the convenient symbolic link
+LogViewer /path/to/file.log
+
 # Use custom configuration
 log_viewer --config /path/to/config.yml /path/to/file.log
 
+# With RPM installation using symbolic link
+LogViewer --config /path/to/config.yml /path/to/file.log
+
 # Show help
 log_viewer --help
+LogViewer --help  # (if installed via RPM)
 ```
 
 ### Configuration Files

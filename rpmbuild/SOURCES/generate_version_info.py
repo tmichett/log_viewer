@@ -16,7 +16,7 @@ def read_version_from_file():
                     return line.split('=')[1].strip()
     except FileNotFoundError:
         print("Warning: Build_Version file not found, using default version")
-    return "3.0.0"
+    return "3.9.5"
 
 def parse_version(version_str):
     """Parse version string into major, minor, patch, build"""
