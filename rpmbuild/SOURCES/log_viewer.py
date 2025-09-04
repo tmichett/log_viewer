@@ -815,6 +815,9 @@ class AboutDialog(QDialog):
         layout.addLayout(btn_layout)
 
 class TermFormatDialog(QDialog):
+    # Signal to notify when apply is pressed
+    applied = pyqtSignal(dict)
+    
     def __init__(self, parent=None, term="", bg_color=None, text_color=None, bold=False):
         super().__init__(parent)
         self.setWindowTitle("Term Formatting")
@@ -949,6 +952,25 @@ class TermFormatDialog(QDialog):
         
         # Buttons
         button_layout = QHBoxLayout()
+        
+        # Apply button
+        apply_btn = QPushButton("Apply")
+        apply_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        apply_btn.clicked.connect(self.apply_changes)
+        button_layout.addWidget(apply_btn)
+        
+        # OK button
         ok_btn = QPushButton("OK")
         ok_btn.setStyleSheet(f"""
             QPushButton {{
@@ -963,6 +985,8 @@ class TermFormatDialog(QDialog):
             }}
         """)
         ok_btn.clicked.connect(self.accept)
+        
+        # Cancel button  
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setStyleSheet(f"""
             QPushButton {{
@@ -977,6 +1001,7 @@ class TermFormatDialog(QDialog):
             }}
         """)
         cancel_btn.clicked.connect(self.reject)
+        
         button_layout.addWidget(ok_btn)
         button_layout.addWidget(cancel_btn)
         layout.addLayout(button_layout)
@@ -1039,6 +1064,11 @@ class TermFormatDialog(QDialog):
                 }}
             """)
     
+    def apply_changes(self):
+        """Apply the current formatting changes without closing the dialog"""
+        result = self.get_result()
+        self.applied.emit(result)
+    
     def get_result(self):
         result = {
             'term': self.term_edit.text(),
@@ -1055,6 +1085,8 @@ class ConfigDialog(QDialog):
         self.setWindowTitle("Configure Highlighting")
         self.resize(400, 300)
         self.highlight_terms = highlight_terms or []
+        # Store original terms for restoration on cancel
+        self.original_highlight_terms = [term.copy() if isinstance(term, dict) else term for term in self.highlight_terms]
         
         # Use parent's theme
         if parent and hasattr(parent, 'current_theme_colors'):
@@ -1166,6 +1198,12 @@ class ConfigDialog(QDialog):
     def add_term(self):
         dialog = TermFormatDialog(self)
         
+        # Connect apply signal to preview the changes
+        dialog.applied.connect(lambda term_data: self.preview_term_changes(term_data, is_new=True))
+        # Store original state for restoration if dialog is cancelled
+        original_terms = [term.copy() if isinstance(term, dict) else term for term in self.highlight_terms]
+        dialog.finished.connect(lambda result: self.restore_on_cancel(result, original_terms) if result == 0 else None)
+        
         # Use try/except to handle different PyQt versions for dialog execution
         try:
             result = dialog.exec()
@@ -1181,6 +1219,9 @@ class ConfigDialog(QDialog):
             if term_data['term']:  # Only add if term is not empty
                 self.highlight_terms.append(term_data)
                 self.update_terms_list()
+                # Apply changes to main window
+                if hasattr(self.parent(), 'highlighter') and hasattr(self.parent(), 'highlighter'):
+                    self.parent().highlighter.set_highlight_terms(self.highlight_terms)
     
     def edit_term(self):
         current_row = self.terms_list.currentRow()
@@ -1201,6 +1242,12 @@ class ConfigDialog(QDialog):
             dialog = TermFormatDialog(self, term=term, bg_color=bg_color, 
                                     text_color=text_color, bold=bold)
             
+            # Connect apply signal to preview the changes
+            dialog.applied.connect(lambda term_data: self.preview_term_changes(term_data, is_new=False, index=current_row))
+            # Store original state for restoration if dialog is cancelled
+            original_terms = [term.copy() if isinstance(term, dict) else term for term in self.highlight_terms]
+            dialog.finished.connect(lambda result: self.restore_on_cancel(result, original_terms) if result == 0 else None)
+            
             # Use try/except to handle different PyQt versions for dialog execution
             try:
                 result = dialog.exec()
@@ -1216,6 +1263,57 @@ class ConfigDialog(QDialog):
                 if term_data['term']:  # Only update if term is not empty
                     self.highlight_terms[current_row] = term_data
                     self.update_terms_list()
+                    # Apply changes to main window
+                    if hasattr(self.parent(), 'highlighter') and hasattr(self.parent(), 'highlighter'):
+                        self.parent().highlighter.set_highlight_terms(self.highlight_terms)
+    
+    def preview_term_changes(self, term_data, is_new=False, index=None):
+        """Preview term changes in the main window without permanently saving them"""
+        if not term_data['term']:  # Don't preview empty terms
+            return
+            
+        # Create a temporary copy of highlight terms for preview
+        preview_terms = self.highlight_terms.copy()
+        
+        if is_new:
+            # Add the new term temporarily
+            preview_terms.append(term_data)
+        else:
+            # Update existing term temporarily
+            if index is not None and 0 <= index < len(preview_terms):
+                preview_terms[index] = term_data
+        
+        # Apply preview to main window highlighter
+        if hasattr(self.parent(), 'highlighter'):
+            self.parent().highlighter.set_highlight_terms(preview_terms)
+            # Force a repaint to show the changes immediately
+            if hasattr(self.parent(), 'text_editor'):
+                self.parent().text_editor.update()
+    
+    def reject(self):
+        """Override reject to restore original highlighting when cancelled"""
+        # Restore original highlighting
+        if hasattr(self.parent(), 'highlighter'):
+            self.parent().highlighter.set_highlight_terms(self.original_highlight_terms)
+            # Force a repaint to show the restored highlighting
+            if hasattr(self.parent(), 'text_editor'):
+                self.parent().text_editor.update()
+        super().reject()
+    
+    def accept(self):
+        """Override accept to ensure final changes are applied"""
+        # Apply final changes to main window
+        if hasattr(self.parent(), 'highlighter'):
+            self.parent().highlighter.set_highlight_terms(self.highlight_terms)
+        super().accept()
+    
+    def restore_on_cancel(self, result, original_terms):
+        """Restore highlighting when TermFormatDialog is cancelled"""
+        if result == 0:  # Dialog was rejected/cancelled
+            if hasattr(self.parent(), 'highlighter'):
+                self.parent().highlighter.set_highlight_terms(original_terms)
+                if hasattr(self.parent(), 'text_editor'):
+                    self.parent().text_editor.update()
     
     def remove_term(self):
         current_row = self.terms_list.currentRow()
