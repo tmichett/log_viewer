@@ -109,6 +109,7 @@ highlight_terms:
 theme: "system"               # Options: system, light, dark
 line_wrap_enabled: false
 line_numbers_enabled: false
+bookmark_highlight_color: "#64C8FF"  # Bookmark highlight color
 ```
 
 ### Configuration Properties
@@ -148,6 +149,63 @@ line_numbers_enabled: false
 - Setting is automatically saved to your configuration file
 - Can be toggled while viewing files - display refreshes automatically
 
+## Bookmarks
+
+### Overview
+Bookmarks allow you to mark important lines in log files for quick navigation and reference. Each bookmark stores the line number, content preview, and creation timestamp.
+
+### Adding Bookmarks
+- **Keyboard**: Place cursor on desired line and press **Ctrl+B**
+- **Menu**: **Bookmarks** → **Toggle Bookmark**
+- **Right-click**: Context menu → **Add Bookmark**
+
+### Navigating Bookmarks
+- **Next Bookmark**: Press **F2** or use **Bookmarks** → **Next Bookmark**
+- **Previous Bookmark**: Press **Shift+F2** or use **Bookmarks** → **Previous Bookmark**
+- **List All**: Press **Ctrl+Shift+B** or use **Bookmarks** → **List All Bookmarks**
+
+### Bookmark Management
+#### List All Bookmarks Dialog
+- View all bookmarks with line numbers and content previews
+- Double-click any bookmark to navigate directly to that line
+- Use "Delete" button to remove individual bookmarks
+- Use "Go To" button to navigate to selected bookmark
+
+#### Removing Bookmarks
+- **Toggle off**: Use **Ctrl+B** on a bookmarked line to remove the bookmark
+- **Context menu**: Right-click on bookmarked line → **Remove Bookmark**
+- **Clear all**: **Bookmarks** → **Clear All Bookmarks** (requires confirmation)
+
+### Visual Indicators
+- Bookmarked lines are highlighted with a light blue background
+- Bookmark highlighting takes priority over other highlighting (search, syntax)
+- Visual indicators update immediately when bookmarks are added or removed
+
+### Customization
+#### Configure Bookmark Color
+- Use **Bookmarks** → **Configure Bookmark Color** to customize the highlight color
+- Choose any color using the color picker dialog
+- Text color automatically adjusts (black/white) based on background brightness
+- Color preference is saved to your configuration file
+- Changes apply immediately to all existing bookmarks
+
+### Configuration File
+Bookmark color can be configured in your YAML configuration file:
+```yaml
+bookmark_highlight_color: "#64C8FF"  # Light blue (default)
+# Other color examples:
+# bookmark_highlight_color: "#FFD700"  # Gold
+# bookmark_highlight_color: "#98FB98"  # Pale green
+# bookmark_highlight_color: "#FFB6C1"  # Light pink
+```
+
+### Persistence
+- Bookmarks are automatically saved to your configuration file
+- Each file maintains its own set of bookmarks
+- Bookmarks are restored when you reopen a file
+- Bookmarks survive application restarts
+- Bookmark color preference persists across sessions
+
 ## Performance
 
 ### Large Files
@@ -179,6 +237,12 @@ line_numbers_enabled: false
 - **Ctrl+Home**: Go to very beginning
 - **Ctrl+End**: Go to very end
 - **Page Up/Down**: Navigate by pages
+
+### Bookmark Operations
+- **Ctrl+B**: Toggle bookmark at current line
+- **F2**: Navigate to next bookmark
+- **Shift+F2**: Navigate to previous bookmark
+- **Ctrl+Shift+B**: List all bookmarks
 
 ## File Formats
 

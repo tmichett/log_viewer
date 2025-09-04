@@ -383,6 +383,13 @@ class LogHighlighter(QSyntaxHighlighter):
         # Track search-highlighted areas to avoid overriding them
         self.search_highlighted_start = None
         self.search_highlighted_end = None
+        
+        # Bookmark highlighting
+        self.bookmarked_lines = set()  # Set of bookmarked line numbers (1-based)
+        self.bookmark_format = QTextCharFormat()
+        # Default light blue background - will be updated by main window
+        self.bookmark_format.setBackground(QColor(100, 200, 255))  
+        self.bookmark_format.setForeground(QColor(0, 0, 0))
 
     def set_highlight_terms(self, terms):
         self.highlight_terms = []
@@ -451,12 +458,51 @@ class LogHighlighter(QSyntaxHighlighter):
         """Clear the search-highlighted range"""
         self.search_highlighted_start = None
         self.search_highlighted_end = None
+    
+    def set_bookmarked_lines(self, bookmarked_lines):
+        """Set the lines that should have bookmark highlighting"""
+        self.bookmarked_lines = set(bookmarked_lines)
+        self.rehighlight()
+    
+    def add_bookmark_line(self, line_number):
+        """Add a line to bookmark highlighting"""
+        self.bookmarked_lines.add(line_number)
+        # Only rehighlight the specific block for performance
+        if hasattr(self, 'document') and self.document():
+            block = self.document().findBlockByNumber(line_number - 1)
+            if block.isValid():
+                self.rehighlightBlock(block)
+    
+    def remove_bookmark_line(self, line_number):
+        """Remove a line from bookmark highlighting"""
+        self.bookmarked_lines.discard(line_number)
+        # Only rehighlight the specific block for performance
+        if hasattr(self, 'document') and self.document():
+            block = self.document().findBlockByNumber(line_number - 1)
+            if block.isValid():
+                self.rehighlightBlock(block)
+    
+    def update_bookmark_format(self, bookmark_format):
+        """Update the bookmark highlighting format"""
+        self.bookmark_format = bookmark_format
+        # Rehighlight all bookmarked lines with the new format
+        if self.bookmarked_lines and hasattr(self, 'document') and self.document():
+            for line_number in self.bookmarked_lines:
+                block = self.document().findBlockByNumber(line_number - 1)
+                if block.isValid():
+                    self.rehighlightBlock(block)
 
     def highlightBlock(self, text):
         # Get the current block's position in the document
         block = self.currentBlock()
         block_start = block.position()
         block_end = block_start + block.length()
+        line_number = block.blockNumber() + 1  # 1-based line number
+        
+        # Check if this line is bookmarked (highest priority)
+        if line_number in self.bookmarked_lines:
+            self.setFormat(0, len(text), self.bookmark_format)
+            return  # Bookmark highlighting takes precedence
         
         # Check if this block overlaps with search-highlighted area
         if (self.search_highlighted_start is not None and 
@@ -1344,6 +1390,149 @@ class ConfigDialog(QDialog):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save configuration: {str(e)}")
 
+class BookmarkListDialog(QDialog):
+    def __init__(self, parent=None, bookmarks=None):
+        super().__init__(parent)
+        self.setWindowTitle("Bookmarks")
+        self.resize(600, 400)
+        self.bookmarks = bookmarks or []
+        self.selected_bookmark = None
+        
+        # Use parent's theme
+        if parent and hasattr(parent, 'current_theme_colors'):
+            self.theme_colors = parent.current_theme_colors
+        else:
+            self.theme_colors = get_theme_colors(ThemeMode.SYSTEM)
+        
+        layout = QVBoxLayout(self)
+        
+        # Instructions
+        instructions = QLabel("Double-click a bookmark to navigate to it, or select and click 'Go To'.")
+        instructions.setStyleSheet(f"color: {self.theme_colors.window_text};")
+        layout.addWidget(instructions)
+        
+        # Bookmark list
+        from PyQt6.QtWidgets import QListWidget, QListWidgetItem
+        self.bookmark_list = QListWidget()
+        self.bookmark_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {self.theme_colors.base_bg};
+                color: {self.theme_colors.text_color};
+                border: 1px solid {self.theme_colors.border_color};
+                selection-background-color: {self.theme_colors.highlight_bg};
+            }}
+        """)
+        
+        # Populate bookmark list
+        for bookmark in self.bookmarks:
+            line_content = bookmark['content'][:60]  # Limit display length
+            item_text = f"Line {bookmark['line']:4d}: {line_content}"
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.ItemDataRole.UserRole, bookmark)  # Store bookmark data
+            self.bookmark_list.addItem(item)
+        
+        # Handle double-click to navigate
+        self.bookmark_list.itemDoubleClicked.connect(self.on_bookmark_double_clicked)
+        layout.addWidget(self.bookmark_list)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        goto_btn = QPushButton("Go To")
+        goto_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        goto_btn.clicked.connect(self.goto_selected)
+        button_layout.addWidget(goto_btn)
+        
+        delete_btn = QPushButton("Delete")
+        delete_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        delete_btn.clicked.connect(self.delete_selected)
+        button_layout.addWidget(delete_btn)
+        
+        button_layout.addStretch()
+        
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        close_btn.clicked.connect(self.reject)
+        button_layout.addWidget(close_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Apply dialog theme
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {self.theme_colors.window_bg};
+                color: {self.theme_colors.window_text};
+            }}
+        """)
+    
+    def on_bookmark_double_clicked(self, item):
+        """Handle double-click on bookmark item"""
+        bookmark = item.data(Qt.ItemDataRole.UserRole)
+        if bookmark:
+            self.selected_bookmark = bookmark
+            self.accept()
+    
+    def goto_selected(self):
+        """Go to the selected bookmark"""
+        current_item = self.bookmark_list.currentItem()
+        if current_item:
+            bookmark = current_item.data(Qt.ItemDataRole.UserRole)
+            if bookmark:
+                self.selected_bookmark = bookmark
+                self.accept()
+    
+    def delete_selected(self):
+        """Delete the selected bookmark"""
+        current_row = self.bookmark_list.currentRow()
+        if current_row >= 0:
+            bookmark = self.bookmarks[current_row]
+            reply = QMessageBox.question(self, "Delete Bookmark", 
+                                       f"Delete bookmark at line {bookmark['line']}?",
+                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                # Remove from both the dialog list and parent's bookmark list
+                self.bookmarks.pop(current_row)
+                self.bookmark_list.takeItem(current_row)
+                
+                # Also remove from parent's bookmarks if available
+                if self.parent() and hasattr(self.parent(), 'bookmarks'):
+                    self.parent().bookmarks = [b for b in self.parent().bookmarks if b['line'] != bookmark['line']]
+                    self.parent().update_bookmark_highlights()
+
 # WorkerSignals class to enable signal communication from QRunnable worker
 class WorkerSignals(QObject):
     finished = pyqtSignal()
@@ -1441,6 +1630,7 @@ class OptimizedTextEdit(QPlainTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setReadOnly(True)
+        self.main_window = parent  # Store reference to main window
         
         # Use try/except to handle different PyQt versions
         try:
@@ -1481,6 +1671,30 @@ class OptimizedTextEdit(QPlainTextEdit):
         self.setUpdatesEnabled(False)
         self.setTextCursor(cursor)
         self.setUpdatesEnabled(True)
+    
+    def contextMenuEvent(self, event):
+        """Handle right-click context menu for bookmarks"""
+        if not self.main_window:
+            return
+        
+        cursor = self.cursorForPosition(event.pos())
+        line_number = cursor.blockNumber() + 1  # Line numbers are 1-based
+        
+        # Create context menu
+        menu = QMenu(self)
+        
+        # Check if current line is bookmarked
+        is_bookmarked = any(bookmark['line'] == line_number for bookmark in self.main_window.bookmarks)
+        
+        if is_bookmarked:
+            action = menu.addAction("Remove Bookmark")
+            action.triggered.connect(lambda: self.main_window.toggle_bookmark_at_line(line_number))
+        else:
+            action = menu.addAction("Add Bookmark")
+            action.triggered.connect(lambda: self.main_window.toggle_bookmark_at_line(line_number))
+        
+        # Show menu at cursor position
+        menu.exec(event.globalPos())
 
 # Compatibility helper functions
 def safe_single_shot(ms, callback):
@@ -1524,6 +1738,13 @@ class LogViewer(QMainWindow):
         self.line_numbers_enabled = False
         self.current_line_number = 1  # Track current line number for chunk processing
         
+        # Bookmark system
+        self.bookmarks = []  # List of bookmark dictionaries with line numbers and content
+        self.current_bookmark_index = -1  # Current bookmark for navigation
+        self.bookmark_highlight_color = "#64C8FF"  # Default light blue color (100, 200, 255)
+        self.bookmark_highlight_format = QTextCharFormat()
+        self.update_bookmark_highlight_format()
+        
         # Theme system
         self.current_theme_mode = ThemeMode.SYSTEM
         self.current_theme_colors = get_theme_colors(self.current_theme_mode)
@@ -1543,7 +1764,7 @@ class LogViewer(QMainWindow):
         layout = QVBoxLayout(central_widget)
 
         # Create optimized text editor
-        self.text_editor = OptimizedTextEdit()
+        self.text_editor = OptimizedTextEdit(self)
         # Style will be applied by theme system
         layout.addWidget(self.text_editor)
         
@@ -1555,6 +1776,8 @@ class LogViewer(QMainWindow):
 
         # Initialize the highlighter
         self.highlighter = LogHighlighter(self.text_editor.document())
+        # Set initial bookmark format
+        self.highlighter.update_bookmark_format(self.bookmark_highlight_format)
 
         # Create search bar and buttons layout
         search_layout = QHBoxLayout()
@@ -1835,6 +2058,42 @@ class LogViewer(QMainWindow):
         self.line_numbers_action.setChecked(self.line_numbers_enabled)
         self.line_numbers_action.triggered.connect(self.toggle_line_numbers)
         
+        # Bookmarks menu
+        bookmarks_menu = menubar.addMenu("Bookmarks")
+        
+        # Toggle bookmark action
+        toggle_bookmark_action = bookmarks_menu.addAction("Toggle Bookmark")
+        toggle_bookmark_action.setShortcut("Ctrl+B")
+        toggle_bookmark_action.triggered.connect(self.toggle_bookmark)
+        
+        bookmarks_menu.addSeparator()
+        
+        # Navigate bookmarks
+        next_bookmark_action = bookmarks_menu.addAction("Next Bookmark")
+        next_bookmark_action.setShortcut("F2")
+        next_bookmark_action.triggered.connect(self.next_bookmark)
+        
+        prev_bookmark_action = bookmarks_menu.addAction("Previous Bookmark")
+        prev_bookmark_action.setShortcut("Shift+F2")
+        prev_bookmark_action.triggered.connect(self.prev_bookmark)
+        
+        bookmarks_menu.addSeparator()
+        
+        # Bookmark list
+        list_bookmarks_action = bookmarks_menu.addAction("List All Bookmarks")
+        list_bookmarks_action.setShortcut("Ctrl+Shift+B")
+        list_bookmarks_action.triggered.connect(self.list_bookmarks)
+        
+        # Clear all bookmarks
+        clear_bookmarks_action = bookmarks_menu.addAction("Clear All Bookmarks")
+        clear_bookmarks_action.triggered.connect(self.clear_all_bookmarks)
+        
+        bookmarks_menu.addSeparator()
+        
+        # Configure bookmark color
+        config_bookmark_color_action = bookmarks_menu.addAction("Configure Bookmark Color")
+        config_bookmark_color_action.triggered.connect(self.configure_bookmark_color)
+        
         # Help menu
         help_menu = menubar.addMenu("Help")
         
@@ -1868,6 +2127,16 @@ class LogViewer(QMainWindow):
         
         find_prev_shortcut = QShortcut(QKeySequence("Shift+F3"), self)
         find_prev_shortcut.activated.connect(self.find_previous)
+        
+        # Bookmark shortcuts (Ctrl+B is handled by menu action)
+        next_bookmark_shortcut = QShortcut(QKeySequence("F2"), self)
+        next_bookmark_shortcut.activated.connect(self.next_bookmark)
+        
+        prev_bookmark_shortcut = QShortcut(QKeySequence("Shift+F2"), self)
+        prev_bookmark_shortcut.activated.connect(self.prev_bookmark)
+        
+        list_bookmarks_shortcut = QShortcut(QKeySequence("Ctrl+Shift+B"), self)
+        list_bookmarks_shortcut.activated.connect(self.list_bookmarks)
         
         # Clear search shortcut
         clear_search_shortcut = QShortcut(QKeySequence("Escape"), self)
@@ -2193,6 +2462,15 @@ class LogViewer(QMainWindow):
             # Update line numbers preference  
             config['line_numbers_enabled'] = self.line_numbers_enabled
             
+            # Update bookmark highlight color
+            config['bookmark_highlight_color'] = self.bookmark_highlight_color
+            
+            # Save bookmarks (only for current file if available)
+            if hasattr(self, 'current_file') and self.current_file and self.bookmarks:
+                if 'bookmarks' not in config:
+                    config['bookmarks'] = {}
+                config['bookmarks'][self.current_file] = self.bookmarks
+            
             # Preserve highlight terms if they exist
             if self.highlight_terms:
                 config['highlight_terms'] = self.highlight_terms
@@ -2453,6 +2731,194 @@ class LogViewer(QMainWindow):
             # Trigger rehighlighting to restore config-based highlights
             self.highlighter.rehighlight()
 
+    # Bookmark functionality
+    def toggle_bookmark(self):
+        """Toggle bookmark at current cursor position"""
+        cursor = self.text_editor.textCursor()
+        line_number = cursor.blockNumber() + 1  # Line numbers are 1-based
+        self.toggle_bookmark_at_line(line_number)
+    
+    def toggle_bookmark_at_line(self, line_number):
+        """Toggle bookmark at specific line number"""
+        # Check if bookmark already exists at this line
+        existing_bookmark = None
+        for bookmark in self.bookmarks:
+            if bookmark['line'] == line_number:
+                existing_bookmark = bookmark
+                break
+        
+        if existing_bookmark:
+            # Remove existing bookmark
+            self.bookmarks.remove(existing_bookmark)
+            self.status_label.setText(f"Bookmark removed from line {line_number}")
+        else:
+            # Add new bookmark
+            # Get line content for display purposes
+            block = self.text_editor.document().findBlockByNumber(line_number - 1)
+            line_content = block.text()[:50]  # First 50 characters as preview
+            if len(block.text()) > 50:
+                line_content += "..."
+            
+            bookmark = {
+                'line': line_number,
+                'content': line_content,
+                'timestamp': time.time()
+            }
+            self.bookmarks.append(bookmark)
+            # Sort bookmarks by line number
+            self.bookmarks.sort(key=lambda x: x['line'])
+            self.status_label.setText(f"Bookmark added at line {line_number}")
+        
+        # Update visual indicators
+        self.update_bookmark_highlights()
+    
+    def next_bookmark(self):
+        """Navigate to next bookmark"""
+        if not self.bookmarks:
+            self.status_label.setText("No bookmarks available")
+            return
+        
+        current_line = self.text_editor.textCursor().blockNumber() + 1
+        
+        # Find next bookmark after current line
+        next_bookmark = None
+        for bookmark in self.bookmarks:
+            if bookmark['line'] > current_line:
+                next_bookmark = bookmark
+                break
+        
+        # If no bookmark after current line, wrap to first bookmark
+        if not next_bookmark:
+            next_bookmark = self.bookmarks[0]
+        
+        self.goto_bookmark(next_bookmark)
+    
+    def prev_bookmark(self):
+        """Navigate to previous bookmark"""
+        if not self.bookmarks:
+            self.status_label.setText("No bookmarks available")
+            return
+        
+        current_line = self.text_editor.textCursor().blockNumber() + 1
+        
+        # Find previous bookmark before current line
+        prev_bookmark = None
+        for bookmark in reversed(self.bookmarks):
+            if bookmark['line'] < current_line:
+                prev_bookmark = bookmark
+                break
+        
+        # If no bookmark before current line, wrap to last bookmark
+        if not prev_bookmark:
+            prev_bookmark = self.bookmarks[-1]
+        
+        self.goto_bookmark(prev_bookmark)
+    
+    def goto_bookmark(self, bookmark):
+        """Navigate to a specific bookmark"""
+        line_number = bookmark['line']
+        
+        # Move cursor to the bookmarked line
+        cursor = self.text_editor.textCursor()
+        
+        # Go to the specific line (line_number - 1 because it's 0-based internally)
+        block = self.text_editor.document().findBlockByNumber(line_number - 1)
+        cursor.setPosition(block.position())
+        
+        # Set cursor and center the view
+        self.text_editor.setTextCursor(cursor)
+        self.text_editor.centerCursor()
+        
+        # Update status
+        self.status_label.setText(f"Navigated to bookmark at line {line_number}: {bookmark['content']}")
+    
+    def list_bookmarks(self):
+        """Show dialog with all bookmarks"""
+        if not self.bookmarks:
+            QMessageBox.information(self, "Bookmarks", "No bookmarks available.")
+            return
+        
+        dialog = BookmarkListDialog(self, self.bookmarks)
+        result = dialog.exec()
+        
+        # If user selected a bookmark, navigate to it
+        if result == QDialog.DialogCode.Accepted and dialog.selected_bookmark:
+            self.goto_bookmark(dialog.selected_bookmark)
+    
+    def clear_all_bookmarks(self):
+        """Clear all bookmarks after confirmation"""
+        if not self.bookmarks:
+            self.status_label.setText("No bookmarks to clear")
+            return
+        
+        reply = QMessageBox.question(self, "Clear Bookmarks", 
+                                   f"Are you sure you want to clear all {len(self.bookmarks)} bookmarks?",
+                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                   QMessageBox.StandardButton.No)
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.bookmarks.clear()
+            self.update_bookmark_highlights()
+            self.status_label.setText("All bookmarks cleared")
+    
+    def configure_bookmark_color(self):
+        """Open color picker dialog to configure bookmark highlight color"""
+        current_color = QColor(self.bookmark_highlight_color)
+        color = QColorDialog.getColor(current_color, self, "Choose Bookmark Highlight Color")
+        
+        if color.isValid():
+            # Update bookmark color
+            self.bookmark_highlight_color = color.name()
+            self.update_bookmark_highlight_format()
+            
+            # Update existing bookmarks with new color
+            if self.bookmarks:
+                self.update_bookmark_highlights()
+            
+            # Save configuration
+            self.save_app_config()
+            
+            # Update status
+            self.status_label.setText(f"Bookmark highlight color changed to {color.name()}")
+    
+    def update_bookmark_highlight_format(self):
+        """Update the bookmark highlight format based on configured color"""
+        color = QColor(self.bookmark_highlight_color)
+        self.bookmark_highlight_format.setBackground(color)
+        # Auto-select text color based on background brightness
+        if color.lightness() > 128:
+            self.bookmark_highlight_format.setForeground(QColor(0, 0, 0))  # Dark text
+        else:
+            self.bookmark_highlight_format.setForeground(QColor(255, 255, 255))  # Light text
+        
+        # Update highlighter if it exists
+        if hasattr(self, 'highlighter'):
+            self.highlighter.update_bookmark_format(self.bookmark_highlight_format)
+    
+    def update_bookmark_highlights(self):
+        """Update visual highlighting for bookmarked lines"""
+        if hasattr(self, 'highlighter'):
+            # Extract line numbers from bookmarks
+            bookmarked_lines = [bookmark['line'] for bookmark in self.bookmarks]
+            self.highlighter.set_bookmarked_lines(bookmarked_lines)
+    
+    def load_bookmarks_for_current_file(self):
+        """Load bookmarks for the currently open file"""
+        if not hasattr(self, 'current_file') or not self.current_file:
+            return
+        
+        try:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    config = yaml.safe_load(f) or {}
+                    if 'bookmarks' in config and self.current_file in config['bookmarks']:
+                        self.bookmarks = config['bookmarks'][self.current_file]
+                        self.update_bookmark_highlights()
+                        if self.bookmarks:
+                            self.status_label.setText(f"Loaded {len(self.bookmarks)} bookmarks for this file")
+        except Exception as e:
+            print(f"Error loading bookmarks: {e}")
+
     def load_config(self):
         try:
             if os.path.exists(self.config_path):
@@ -2478,6 +2944,18 @@ class LogViewer(QMainWindow):
                     # Load line numbers preference if present
                     if 'line_numbers_enabled' in config:
                         self.line_numbers_enabled = config['line_numbers_enabled']
+                    
+                    # Load bookmark highlight color if present
+                    if 'bookmark_highlight_color' in config:
+                        self.bookmark_highlight_color = config['bookmark_highlight_color']
+                        self.update_bookmark_highlight_format()
+                    
+                    # Load bookmarks for current file if present
+                    if hasattr(self, 'current_file') and self.current_file and 'bookmarks' in config:
+                        file_bookmarks = config['bookmarks'].get(self.current_file, [])
+                        if file_bookmarks:
+                            self.bookmarks = file_bookmarks
+                            self.update_bookmark_highlights()
                     
                     # Display which config file was loaded
                     user_config_path = os.path.join(os.path.expanduser('~'), 'logviewer_config.yml')
@@ -2608,7 +3086,8 @@ class LogViewer(QMainWindow):
         self.text_editor.clear()
         self.status_label.setText(f"Loading file: {file_path}...")
         
-        # Reset line counter for line numbering
+        # Clear previous bookmarks and reset line counter
+        self.bookmarks.clear()
         self.current_line_number = 1
         
         # Show progress bar
@@ -2653,6 +3132,9 @@ class LogViewer(QMainWindow):
         
         # Apply highlighting after file is completely loaded
         safe_single_shot(100, self.load_config)
+        
+        # Load bookmarks for this file
+        safe_single_shot(200, self.load_bookmarks_for_current_file)
         
         # Move cursor to start for better performance
         cursor = self.text_editor.textCursor()
