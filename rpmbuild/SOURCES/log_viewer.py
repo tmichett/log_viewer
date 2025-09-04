@@ -41,8 +41,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QTextEdit,
                            QColorDialog, QDialog, QFormLayout,
                            QDialogButtonBox, QMessageBox, QInputDialog,
                            QProgressBar, QScrollBar, QPlainTextEdit, QMenuBar,
-                           QMenu, QTextBrowser, QScrollArea)
-from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette, QTextCursor
+                           QMenu, QTextBrowser, QScrollArea, QCheckBox)
+from PyQt6.QtGui import QTextCharFormat, QColor, QSyntaxHighlighter, QPalette, QTextCursor, QFont
 from PyQt6.QtCore import (Qt, QRunnable, QThreadPool, pyqtSignal, QObject, 
                          pyqtSlot, QTimer, QSize, QStandardPaths)
 from PyQt6.QtGui import QShortcut, QKeySequence
@@ -260,6 +260,12 @@ def get_theme_colors(theme_mode):
 # Cross-platform configuration path handling
 def get_config_path():
     """Get the appropriate configuration file path for the current platform"""
+    # First, check for user default config in home directory
+    user_config_path = os.path.join(os.path.expanduser('~'), 'logviewer_config.yml')
+    if os.path.exists(user_config_path):
+        return user_config_path
+    
+    # If user default config doesn't exist, use platform-specific paths
     if platform.system() == 'Windows':
         # Use Windows AppData directory for configuration
         app_data = os.environ.get('APPDATA', os.path.expanduser('~'))
@@ -382,20 +388,48 @@ class LogHighlighter(QSyntaxHighlighter):
         self.highlight_terms = []
         for term in terms:
             if isinstance(term, dict):
-                # New format with optional color
+                # New format with optional color, text_color, and bold
                 highlight_format = QTextCharFormat()
+                
+                # Set background color
                 if 'color' in term:
                     # Convert hex color to QColor
                     color = QColor(term['color'])
                     highlight_format.setBackground(color)
-                    # Set text color to black or white based on background brightness
-                    if color.lightness() > 128:
+                else:
+                    # Use default background color
+                    highlight_format.setBackground(QColor(100, 149, 237))
+                
+                # Set text color
+                if 'text_color' in term:
+                    # Use custom text color
+                    text_color = QColor(term['text_color'])
+                    highlight_format.setForeground(text_color)
+                elif 'color' in term:
+                    # Auto-select text color based on background brightness (legacy behavior)
+                    bg_color = QColor(term['color'])
+                    if bg_color.lightness() > 128:
                         highlight_format.setForeground(QColor(0, 0, 0))
                     else:
                         highlight_format.setForeground(QColor(255, 255, 255))
                 else:
-                    # Use default format if no color specified
-                    highlight_format = self.default_highlight_format
+                    # Use default text color
+                    highlight_format.setForeground(QColor(0, 0, 0))
+                
+                # Set bold formatting
+                if term.get('bold', False):
+                    try:
+                        highlight_format.setFontWeight(QFont.Weight.Bold)
+                    except AttributeError:
+                        # Fallback for older PyQt versions
+                        highlight_format.setFontWeight(700)  # Bold weight
+                else:
+                    try:
+                        highlight_format.setFontWeight(QFont.Weight.Normal)
+                    except AttributeError:
+                        # Fallback for older PyQt versions
+                        highlight_format.setFontWeight(400)  # Normal weight
+                
                 self.highlight_terms.append({
                     'term': term['term'].lower(),
                     'format': highlight_format
@@ -573,6 +607,56 @@ class HelpDialog(QDialog):
                 <li><strong>Colors:</strong> Use the color picker to choose highlight colors</li>
             </ul>
             
+            <h2>Configuration Files</h2>
+            <h3>Configuration Precedence</h3>
+            <p>Log Viewer loads configuration files in the following order of precedence:</p>
+            <ol>
+                <li><strong>Command Line Config</strong> (Highest Priority): <code>log_viewer --config /path/to/config.yml</code></li>
+                <li><strong>User Default Config</strong>: <code>~/logviewer_config.yml</code> (in your home directory)</li>
+                <li><strong>Platform-Specific Config</strong> (Lowest Priority): See platform sections below</li>
+            </ol>
+            
+            <h3>Creating a User Default Config</h3>
+            <p>To create a personal configuration that applies to all Log Viewer sessions:</p>
+            <ol>
+                <li>Open the Configuration Dialog ("Configure Highlighting" button)</li>
+                <li>Set up your preferred highlight terms and colors</li>
+                <li>Click "Save Config" - it will default to <code>~/logviewer_config.yml</code></li>
+                <li>Your settings will automatically load in future sessions</li>
+            </ol>
+            
+            <h3>Configuration Structure</h3>
+            <pre>highlight_terms:
+  - term: "ERROR"
+    color: "#ff0000"
+  - term: "WARNING" 
+    color: "#ffff00"
+  - "INFO"  # Uses default color
+theme: "system"  # Options: system, light, dark
+line_wrap_enabled: false</pre>
+            
+            <h2>Themes and Display</h2>
+            <h3>Theme Options</h3>
+            <ul>
+                <li><strong>System Theme:</strong> Automatically matches your operating system theme</li>
+                <li><strong>Light Theme:</strong> Light background with dark text</li>
+                <li><strong>Dark Theme:</strong> Dark background optimized for log viewing</li>
+            </ul>
+            
+            <h3>Changing Themes</h3>
+            <ol>
+                <li>Go to <strong>View</strong> → <strong>Theme</strong> in the menu bar</li>
+                <li>Select your preferred theme option</li>
+                <li>The theme will change immediately and be saved to your configuration</li>
+            </ol>
+            
+            <h3>Line Wrapping</h3>
+            <ul>
+                <li>Toggle line wrapping using <strong>View</strong> → <strong>Line Wrap</strong></li>
+                <li>When enabled, long lines will wrap to fit the window width</li>
+                <li>When disabled, long lines extend horizontally with a scrollbar</li>
+            </ul>
+            
             <h2>Keyboard Shortcuts</h2>
             <h3>File Operations</h3>
             <ul>
@@ -600,14 +684,16 @@ class HelpDialog(QDialog):
             <h2>Platform-Specific Notes</h2>
             <h3>Windows</h3>
             <ul>
-                <li>Configuration files are stored in <code>%APPDATA%\\LogViewer\\</code></li>
+                <li><strong>User Config:</strong> <code>~/logviewer_config.yml</code> (recommended)</li>
+                <li><strong>System Config:</strong> <code>%APPDATA%\\LogViewer\\config.yml</code></li>
                 <li>Use Windows-style paths (e.g., <code>C:\\path\\to\\file.log</code>)</li>
                 <li>The application supports high DPI displays</li>
             </ul>
             
             <h3>macOS</h3>
             <ul>
-                <li>Configuration files are stored in <code>~/Library/Application Support/LogViewer/</code></li>
+                <li><strong>User Config:</strong> <code>~/logviewer_config.yml</code> (recommended)</li>
+                <li><strong>System Config:</strong> <code>~/Library/Application Support/LogViewer/config.yml</code></li>
                 <li>Use Unix-style paths (e.g., <code>/path/to/file.log</code>)</li>
                 <li>The application supports Retina displays</li>
                 <li>Use Cmd+O to open files and Cmd+Q to quit</li>
@@ -615,7 +701,8 @@ class HelpDialog(QDialog):
             
             <h3>Linux</h3>
             <ul>
-                <li>Configuration files are stored in the current directory</li>
+                <li><strong>User Config:</strong> <code>~/logviewer_config.yml</code> (recommended)</li>
+                <li><strong>System Config:</strong> <code>./config.yml</code> (current directory)</li>
                 <li>Use Unix-style paths (e.g., <code>/path/to/file.log</code>)</li>
                 <li>The application supports high DPI displays</li>
             </ul>
@@ -652,35 +739,35 @@ class AboutDialog(QDialog):
         
         # Application info
         app_label = QLabel("Log Viewer Application")
-        app_label.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
+        app_label.setStyleSheet(f"""
+            QLabel {{
+                color: {self.theme_colors.text_color};
                 font-size: 18pt;
                 font-weight: bold;
                 text-align: center;
-            }
+            }}
         """)
         app_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(app_label)
         
         company_label = QLabel("Michette Technologies")
-        company_label.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
+        company_label.setStyleSheet(f"""
+            QLabel {{
+                color: {self.theme_colors.text_color};
                 font-size: 14pt;
                 text-align: center;
-            }
+            }}
         """)
         company_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(company_label)
         
         version_label = QLabel(f"Version {APP_VERSION}")
-        version_label.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
+        version_label.setStyleSheet(f"""
+            QLabel {{
+                color: {self.theme_colors.text_color};
                 font-size: 12pt;
                 text-align: center;
-            }
+            }}
         """)
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(version_label)
@@ -690,12 +777,12 @@ class AboutDialog(QDialog):
         
         # Additional info
         info_label = QLabel("A powerful log file viewer with ANSI color support\nand configurable highlighting features.")
-        info_label.setStyleSheet("""
-            QLabel {
-                color: #cccccc;
+        info_label.setStyleSheet(f"""
+            QLabel {{
+                color: {self.theme_colors.window_text};
                 font-size: 10pt;
                 text-align: center;
-            }
+            }}
         """)
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         info_label.setWordWrap(True)
@@ -706,18 +793,18 @@ class AboutDialog(QDialog):
         
         # Close button
         close_btn = QPushButton("Close")
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3f3f3f;
-                color: white;
-                border: 1px solid #555555;
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
                 padding: 8px;
                 border-radius: 3px;
                 min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #4f4f4f;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
         """)
         close_btn.clicked.connect(self.accept)
         
@@ -725,6 +812,241 @@ class AboutDialog(QDialog):
         btn_layout.addStretch()
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
+
+class TermFormatDialog(QDialog):
+    def __init__(self, parent=None, term="", bg_color=None, text_color=None, bold=False):
+        super().__init__(parent)
+        self.setWindowTitle("Term Formatting")
+        self.setModal(True)
+        self.resize(400, 300)
+        
+        # Get theme colors from parent
+        if parent and hasattr(parent, 'theme_colors'):
+            self.theme_colors = parent.theme_colors
+        elif parent and hasattr(parent, 'current_theme_colors'):
+            self.theme_colors = parent.current_theme_colors
+        else:
+            # Fallback theme colors for dark mode
+            self.theme_colors = type('', (), {
+                'window_bg': '#2b2b2b',
+                'window_text': '#ffffff',
+                'button_bg': '#404040',
+                'button_text': '#ffffff',
+                'border_color': '#555555',
+                'hover_color': '#505050',
+                'pressed_color': '#606060'
+            })()
+        
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {self.theme_colors.window_bg};
+                color: {self.theme_colors.window_text};
+            }}
+            QLabel {{
+                color: {self.theme_colors.window_text};
+                background: transparent;
+            }}
+        """)
+        
+        layout = QVBoxLayout(self)
+        
+        # Term input
+        term_layout = QHBoxLayout()
+        term_layout.addWidget(QLabel("Term:"))
+        self.term_edit = QLineEdit(term)
+        self.term_edit.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 5px;
+                border-radius: 3px;
+            }}
+        """)
+        term_layout.addWidget(self.term_edit)
+        layout.addLayout(term_layout)
+        
+        # Background color
+        bg_layout = QHBoxLayout()
+        bg_layout.addWidget(QLabel("Background Color:"))
+        self.bg_color_btn = QPushButton("Choose Color")
+        self.bg_color = QColor(bg_color) if bg_color else QColor(100, 149, 237)
+        self.bg_color_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.bg_color.name()};
+                color: {'#000000' if self.bg_color.lightness() > 128 else '#ffffff'};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                border: 2px solid {self.theme_colors.border_color};
+            }}
+        """)
+        self.bg_color_btn.clicked.connect(self.choose_bg_color)
+        bg_layout.addWidget(self.bg_color_btn)
+        layout.addLayout(bg_layout)
+        
+        # Text color
+        text_layout = QHBoxLayout()
+        text_layout.addWidget(QLabel("Text Color:"))
+        self.text_color_btn = QPushButton("Choose Color")
+        self.text_color = QColor(text_color) if text_color else None
+        self.update_text_color_button()
+        self.text_color_btn.clicked.connect(self.choose_text_color)
+        text_layout.addWidget(self.text_color_btn)
+        
+        # Clear text color button
+        self.clear_text_btn = QPushButton("Auto")
+        self.clear_text_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        self.clear_text_btn.clicked.connect(self.clear_text_color)
+        text_layout.addWidget(self.clear_text_btn)
+        layout.addLayout(text_layout)
+        
+        # Bold checkbox
+        self.bold_checkbox = QCheckBox("Bold Text")
+        self.bold_checkbox.setChecked(bold)
+        self.bold_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {self.theme_colors.window_text};
+                padding: 5px;
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {self.theme_colors.border_color};
+                border-radius: 3px;
+                background-color: {self.theme_colors.button_bg};
+            }}
+            QCheckBox::indicator:hover {{
+                border: 2px solid {self.theme_colors.window_text};
+                background-color: {self.theme_colors.hover_color};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: #4CAF50;
+                border: 2px solid #4CAF50;
+                image: none;
+            }}
+            QCheckBox::indicator:checked:hover {{
+                background-color: #45a049;
+                border: 2px solid #45a049;
+            }}
+        """)
+        layout.addWidget(self.bold_checkbox)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("OK")
+        ok_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        ok_btn.clicked.connect(self.accept)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(ok_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+    
+    def choose_bg_color(self):
+        color = QColorDialog.getColor(self.bg_color, self, "Choose Background Color")
+        if color.isValid():
+            self.bg_color = color
+            self.bg_color_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {color.name()};
+                    color: {'#000000' if color.lightness() > 128 else '#ffffff'};
+                    border: 1px solid {self.theme_colors.border_color};
+                    padding: 8px;
+                    border-radius: 3px;
+                }}
+                QPushButton:hover {{
+                    border: 2px solid {self.theme_colors.border_color};
+                }}
+            """)
+    
+    def choose_text_color(self):
+        initial_color = self.text_color if self.text_color else QColor(0, 0, 0)
+        color = QColorDialog.getColor(initial_color, self, "Choose Text Color")
+        if color.isValid():
+            self.text_color = color
+            self.update_text_color_button()
+    
+    def clear_text_color(self):
+        self.text_color = None
+        self.update_text_color_button()
+    
+    def update_text_color_button(self):
+        if self.text_color:
+            self.text_color_btn.setText(f"Text Color: {self.text_color.name()}")
+            self.text_color_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {self.text_color.name()};
+                    color: {'#000000' if self.text_color.lightness() > 128 else '#ffffff'};
+                    border: 1px solid {self.theme_colors.border_color};
+                    padding: 8px;
+                    border-radius: 3px;
+                }}
+                QPushButton:hover {{
+                    border: 2px solid {self.theme_colors.border_color};
+                }}
+            """)
+        else:
+            self.text_color_btn.setText("Auto Text Color")
+            self.text_color_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {self.theme_colors.button_bg};
+                    color: {self.theme_colors.button_text};
+                    border: 1px solid {self.theme_colors.border_color};
+                    padding: 8px;
+                    border-radius: 3px;
+                }}
+                QPushButton:hover {{
+                    background-color: {self.theme_colors.hover_color};
+                }}
+            """)
+    
+    def get_result(self):
+        result = {
+            'term': self.term_edit.text(),
+            'color': self.bg_color.name(),
+            'bold': self.bold_checkbox.isChecked()
+        }
+        if self.text_color:
+            result['text_color'] = self.text_color.name()
+        return result
 
 class ConfigDialog(QDialog):
     def __init__(self, parent=None, highlight_terms=None):
@@ -831,43 +1153,33 @@ class ConfigDialog(QDialog):
             if isinstance(term, dict):
                 display_text = term['term']
                 if 'color' in term:
-                    display_text += f" (Color: {term['color']})"
+                    display_text += f" (Bg: {term['color']})"
+                if 'text_color' in term:
+                    display_text += f" (Text: {term['text_color']})"
+                if term.get('bold', False):
+                    display_text += " (Bold)"
                 self.terms_list.addItem(display_text)
             else:
                 self.terms_list.addItem(term)
     
     def add_term(self):
-        term, ok = QInputDialog.getText(self, "Add Term", "Enter term to highlight:")
-        if ok and term:
-            color_dialog = QColorDialog(self)
-            color_dialog.setStyleSheet(f"""
-                QColorDialog {{
-                    background-color: {self.theme_colors.window_bg};
-                    color: {self.theme_colors.window_text};
-                }}
-            """)
-            
-            # Use try/except to handle different PyQt versions for dialog execution
+        dialog = TermFormatDialog(self)
+        
+        # Use try/except to handle different PyQt versions for dialog execution
+        try:
+            result = dialog.exec()
+        except AttributeError:
             try:
-                result = color_dialog.exec()
+                result = dialog.exec_()
             except AttributeError:
-                # For PyQt6 < 6.0
-                try:
-                    result = color_dialog.exec_()
-                except AttributeError:
-                    result = QtConstants.Rejected
-                    print("Warning: Could not execute color dialog.")
-            
-            if result == QtConstants.Accepted:
-                color = color_dialog.selectedColor()
-                color_hex = color.name()
-                self.highlight_terms.append({
-                    'term': term,
-                    'color': color_hex
-                })
-            else:
-                self.highlight_terms.append(term)
-            self.update_terms_list()
+                result = QtConstants.Rejected
+                print("Warning: Could not execute format dialog.")
+        
+        if result == QtConstants.Accepted:
+            term_data = dialog.get_result()
+            if term_data['term']:  # Only add if term is not empty
+                self.highlight_terms.append(term_data)
+                self.update_terms_list()
     
     def edit_term(self):
         current_row = self.terms_list.currentRow()
@@ -876,47 +1188,33 @@ class ConfigDialog(QDialog):
             
             if isinstance(current_term, dict):
                 term = current_term['term']
-                current_color = current_term.get('color', None)
+                bg_color = current_term.get('color', None)
+                text_color = current_term.get('text_color', None)
+                bold = current_term.get('bold', False)
             else:
                 term = current_term
-                current_color = None
-                
-            new_term, ok = QInputDialog.getText(self, "Edit Term", 
-                                              "Edit term to highlight:", 
-                                              text=term)
-            if ok and new_term:
-                color_dialog = QColorDialog(self)
-                color_dialog.setStyleSheet(f"""
-                    QColorDialog {{
-                        background-color: {self.theme_colors.window_bg};
-                        color: {self.theme_colors.window_text};
-                    }}
-                """)
-                if current_color:
-                    color_dialog.setCurrentColor(QColor(current_color))
-                
-                # Use try/except to handle different PyQt versions for dialog execution
+                bg_color = None
+                text_color = None
+                bold = False
+            
+            dialog = TermFormatDialog(self, term=term, bg_color=bg_color, 
+                                    text_color=text_color, bold=bold)
+            
+            # Use try/except to handle different PyQt versions for dialog execution
+            try:
+                result = dialog.exec()
+            except AttributeError:
                 try:
-                    result = color_dialog.exec()
+                    result = dialog.exec_()
                 except AttributeError:
-                    # For PyQt6 < 6.0
-                    try:
-                        result = color_dialog.exec_()
-                    except AttributeError:
-                        result = QtConstants.Rejected
-                        print("Warning: Could not execute color dialog.")
-                
-                if result == QtConstants.Accepted:
-                    color = color_dialog.selectedColor()
-                    color_hex = color.name()
-                    self.highlight_terms[current_row] = {
-                        'term': new_term,
-                        'color': color_hex
-                    }
-                else:
-                    self.highlight_terms[current_row] = new_term
-                    
-                self.update_terms_list()
+                    result = QtConstants.Rejected
+                    print("Warning: Could not execute format dialog.")
+            
+            if result == QtConstants.Accepted:
+                term_data = dialog.get_result()
+                if term_data['term']:  # Only update if term is not empty
+                    self.highlight_terms[current_row] = term_data
+                    self.update_terms_list()
     
     def remove_term(self):
         current_row = self.terms_list.currentRow()
@@ -925,10 +1223,8 @@ class ConfigDialog(QDialog):
             self.update_terms_list()
     
     def save_config(self):
-        # Create default filename with .yml extension
-        import time
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        default_filename = f"logviewer_config_{timestamp}.yml"
+        # Default to user's home directory with standard config filename
+        default_filename = "logviewer_config.yml"
         default_path = os.path.join(os.path.expanduser("~"), default_filename)
         
         file_name, _ = QFileDialog.getSaveFileName(
@@ -1121,6 +1417,9 @@ class LogViewer(QMainWindow):
         self.loading_file = False
         self.current_file = None
         self.total_content = ""
+        
+        # Line wrap state
+        self.line_wrap_enabled = False
         
         # Theme system
         self.current_theme_mode = ThemeMode.SYSTEM
@@ -1420,6 +1719,13 @@ class LogViewer(QMainWindow):
         # Set initial theme selection
         self.theme_actions[self.current_theme_mode].setChecked(True)
         
+        # Add separator and line wrap toggle
+        view_menu.addSeparator()
+        self.line_wrap_action = view_menu.addAction("Line Wrap")
+        self.line_wrap_action.setCheckable(True)
+        self.line_wrap_action.setChecked(self.line_wrap_enabled)
+        self.line_wrap_action.triggered.connect(self.toggle_line_wrap)
+        
         # Help menu
         help_menu = menubar.addMenu("Help")
         
@@ -1644,6 +1950,72 @@ class LogViewer(QMainWindow):
             self.status_label.setText("System theme refreshed")
         else:
             self.status_label.setText("Theme refresh only works in System Default mode")
+
+    def toggle_line_wrap(self):
+        """Toggle line wrapping on/off in the text editor"""
+        self.line_wrap_enabled = not self.line_wrap_enabled
+        
+        # Apply the new line wrap mode to the text editor
+        try:
+            if self.line_wrap_enabled:
+                # Enable word wrapping
+                try:
+                    self.text_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+                except (AttributeError, TypeError):
+                    try:
+                        self.text_editor.setLineWrapMode(QPlainTextEdit.WidgetWidth)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not enable line wrap mode.")
+            else:
+                # Disable word wrapping  
+                try:
+                    self.text_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+                except (AttributeError, TypeError):
+                    try:
+                        self.text_editor.setLineWrapMode(QPlainTextEdit.NoWrap)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not disable line wrap mode.")
+        except Exception as e:
+            print(f"Error setting line wrap mode: {e}")
+        
+        # Update the menu action text if it exists
+        if hasattr(self, 'line_wrap_action'):
+            self.line_wrap_action.setChecked(self.line_wrap_enabled)
+        
+        # Save the preference
+        self.save_app_config()
+        
+        # Update status
+        wrap_status = "enabled" if self.line_wrap_enabled else "disabled"
+        self.status_label.setText(f"Line wrap {wrap_status}")
+
+    def apply_line_wrap_setting(self):
+        """Apply the current line wrap setting without saving to config"""
+        try:
+            if self.line_wrap_enabled:
+                # Enable word wrapping
+                try:
+                    self.text_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+                except (AttributeError, TypeError):
+                    try:
+                        self.text_editor.setLineWrapMode(QPlainTextEdit.WidgetWidth)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not enable line wrap mode.")
+            else:
+                # Disable word wrapping  
+                try:
+                    self.text_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+                except (AttributeError, TypeError):
+                    try:
+                        self.text_editor.setLineWrapMode(QPlainTextEdit.NoWrap)
+                    except (AttributeError, TypeError):
+                        print("Warning: Could not disable line wrap mode.")
+        except Exception as e:
+            print(f"Error setting line wrap mode: {e}")
+        
+        # Update the menu action state if it exists
+        if hasattr(self, 'line_wrap_action'):
+            self.line_wrap_action.setChecked(self.line_wrap_enabled)
     
     def save_app_config(self):
         """Save application configuration including theme preference"""
@@ -1659,6 +2031,9 @@ class LogViewer(QMainWindow):
             
             # Update theme preference
             config['theme'] = self.current_theme_mode.value
+            
+            # Update line wrap preference
+            config['line_wrap_enabled'] = self.line_wrap_enabled
             
             # Preserve highlight terms if they exist
             if self.highlight_terms:
@@ -1936,25 +2311,21 @@ class LogViewer(QMainWindow):
                         except (ValueError, KeyError):
                             self.current_theme_mode = ThemeMode.SYSTEM
                     
-                    self.status_label.setText(f"Config loaded from {self.config_path}")
+                    # Load line wrap preference if present
+                    if 'line_wrap_enabled' in config:
+                        self.line_wrap_enabled = config['line_wrap_enabled']
+                        # Apply the loaded line wrap setting
+                        self.apply_line_wrap_setting()
+                    
+                    # Display which config file was loaded
+                    user_config_path = os.path.join(os.path.expanduser('~'), 'logviewer_config.yml')
+                    if self.config_path == user_config_path:
+                        self.status_label.setText("User default config loaded from ~/logviewer_config.yml")
+                    else:
+                        self.status_label.setText(f"Config loaded from {self.config_path}")
             else:
-                # Load default config if no custom config exists
-                default_config_path = 'config.yml'
-                if os.path.exists(default_config_path) and self.config_path != default_config_path:
-                    with open(default_config_path, 'r', encoding='utf-8') as f:
-                        config = yaml.safe_load(f)
-                        if 'highlight_terms' in config:
-                            self.highlight_terms = config['highlight_terms']
-                            self.highlighter.set_highlight_terms(self.highlight_terms)
-                        
-                        # Load theme preference if present in default config
-                        if 'theme' in config:
-                            try:
-                                self.current_theme_mode = ThemeMode(config['theme'])
-                            except (ValueError, KeyError):
-                                self.current_theme_mode = ThemeMode.SYSTEM
-                        
-                        self.status_label.setText("Default config loaded")
+                # No configuration file found, use defaults
+                self.status_label.setText("No configuration file found, using defaults")
                         
             # Ensure we always have a valid theme mode
             if not hasattr(self, 'current_theme_mode') or self.current_theme_mode is None:
@@ -1967,6 +2338,14 @@ class LogViewer(QMainWindow):
             if hasattr(self, 'theme_actions'):
                 for mode, action in self.theme_actions.items():
                     action.setChecked(mode == self.current_theme_mode)
+            
+            # Update line wrap menu action if it exists
+            if hasattr(self, 'line_wrap_action'):
+                self.line_wrap_action.setChecked(self.line_wrap_enabled)
+                
+            # Apply line wrap setting if text editor exists
+            if hasattr(self, 'text_editor'):
+                self.apply_line_wrap_setting()
                     
         except Exception as e:
             self.status_label.setText(f"Error loading config: {e}")

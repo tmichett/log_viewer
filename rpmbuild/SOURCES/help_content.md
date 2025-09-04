@@ -31,31 +31,91 @@
 ### Configurable Highlighting
 1. Click "Configure Highlighting" button
 2. Add terms you want to highlight in log files
-3. Choose custom colors for each term
+3. Customize formatting with multiple options:
+   - **Background Color**: Choose highlight background color
+   - **Text Color**: Set custom text color or use automatic selection
+   - **Bold Formatting**: Make highlighted text bold for emphasis
 4. Save configurations for reuse
 
 ### Managing Highlight Terms
-- **Add**: Click "Add Term" and enter the text to highlight
-- **Edit**: Select a term and click "Edit Term" to modify it
+- **Add**: Click "Add Term" to open the Term Formatting dialog
+- **Edit**: Select a term and click "Edit Term" to modify formatting
 - **Remove**: Select a term and click "Remove Term" to delete it
-- **Colors**: Use the color picker to choose highlight colors
+
+### Term Formatting Dialog
+The enhanced formatting dialog provides complete control over text appearance:
+- **Term**: Enter the text to highlight
+- **Background Color**: Choose highlight background color using color picker
+- **Text Color**: 
+  - Select custom text color with color picker
+  - Use "Auto" for automatic color selection based on background brightness
+- **Bold Text**: Check to make highlighted text bold
+- **Preview**: Buttons show live preview of your formatting choices
+
+### Formatting Priority
+- Custom text color overrides automatic color selection
+- Automatic selection chooses black or white text based on background lightness
+- Bold formatting applies independently of color choices
+
+### Common Formatting Examples
+- **Error Messages**: Red background + white text + bold for maximum visibility
+- **Warnings**: Yellow/orange background + black text for clear contrast
+- **Success Messages**: Green text only (no background) + bold for subtle emphasis
+- **Debug Info**: Default background + custom text color for categorization
+- **Critical Issues**: Dark red background + auto text color + bold for urgency
+- **Status Updates**: Custom text colors to categorize different types of status messages
 
 ## Configuration
 
-### Configuration Files
-- Default configuration: `config.yml` in the application directory
-- Custom configurations: Load different configs for different log types
-- YAML format with terms and optional colors
+### Configuration Precedence
+Log Viewer loads configuration files in the following order of precedence:
+1. **Command Line Config** (Highest Priority): `log_viewer --config /path/to/config.yml`
+2. **User Default Config**: `~/logviewer_config.yml` (in your home directory)
+3. **Platform-Specific Config** (Lowest Priority): See platform sections
 
-### Example Configuration
+### Creating a User Default Config
+To create a personal configuration that applies to all Log Viewer sessions:
+1. Open the Configuration Dialog ("Configure Highlighting" button)
+2. Set up your preferred highlight terms and colors
+3. Click "Save Config" - it will default to `~/logviewer_config.yml`
+4. Your settings will automatically load in future sessions
+
+### Configuration Structure
 ```yaml
 highlight_terms:
+  # Simple terms (backward compatible)
+  - "INFO"      # Uses default formatting
+  - "DEBUG"     # Uses default formatting
+  
+  # Enhanced formatting with full control
   - term: "ERROR"
-    color: "#ff0000"
+    color: "#FF0000"        # Red background
+    text_color: "#FFFFFF"   # White text
+    bold: true              # Bold formatting
+  
   - term: "WARNING"
-    color: "#ffff00"
-  - "INFO"  # Uses default color
+    color: "#FFAA00"        # Orange background
+    text_color: "#000000"   # Black text
+    bold: false             # Normal weight
+  
+  - term: "CRITICAL"
+    color: "#800000"        # Dark red background
+    bold: true              # Bold with auto text color
+  
+  - term: "SUCCESS"
+    text_color: "#00FF00"   # Green text only (no background)
+    bold: true
+
+theme: "system"               # Options: system, light, dark
+line_wrap_enabled: false
 ```
+
+### Configuration Properties
+- **term**: The text to highlight (required for enhanced format)
+- **color**: Background color as hex code (optional, defaults to cornflower blue)
+- **text_color**: Text color as hex code (optional, auto-selects based on background if not specified)
+- **bold**: Boolean for bold text formatting (optional, defaults to false)
+- **Simple format**: Just the term string for default highlighting (backward compatible)
 
 ## User Interface
 
@@ -64,10 +124,21 @@ highlight_terms:
 - Range: 6pt to 72pt
 - Changes apply immediately
 
-### Dark Theme
-- Application uses a dark theme optimized for log viewing
-- High contrast for better readability
-- Consistent styling across all dialogs
+### Themes and Display
+#### Theme Options
+- **System Theme**: Automatically matches your operating system theme
+- **Light Theme**: Light background with dark text  
+- **Dark Theme**: Dark background optimized for log viewing
+
+#### Changing Themes
+1. Go to **View** → **Theme** in the menu bar
+2. Select your preferred theme option
+3. The theme will change immediately and be saved to your configuration
+
+#### Line Wrapping
+- Toggle line wrapping using **View** → **Line Wrap**
+- When enabled, long lines will wrap to fit the window width
+- When disabled, long lines extend horizontally with a scrollbar
 
 ## Performance
 
@@ -118,8 +189,12 @@ highlight_terms:
 ### Common Issues
 - **Slow loading**: Normal for very large files - wait for progress to complete
 - **Search not working**: Ensure file is fully loaded before searching
-- **Highlighting not showing**: Check configuration file format
+- **Highlighting not showing**: Check configuration file format and ensure terms match exactly
 - **Application won't start**: Verify Python and PyQt6 installation
+- **Bold checkbox not clickable**: Ensure you're using the latest version with enhanced dark mode support
+- **Text color not applying**: Check that text_color property is properly formatted as hex code (e.g., "#FF0000")
+- **Configuration not saving**: Ensure you have write permissions to the configuration directory
+- **Colors too similar**: Use sufficient contrast between background and text colors for readability
 
 ### Performance Tips
 - Close other applications when viewing very large files
@@ -143,10 +218,14 @@ log_viewer --config /path/to/config.yml /path/to/file.log
 - Load configurations through the GUI
 - Share configurations across team members
 
-### Color Customization
-- Custom colors for each highlight term
-- Color picker interface for easy selection
-- Automatic text color adjustment based on background
+### Advanced Formatting Options
+- **Background Colors**: Custom background colors for each highlight term
+- **Text Colors**: Independent text color control with color picker interface
+- **Bold Formatting**: Toggle bold styling for enhanced visibility
+- **Automatic Text Color**: Intelligent black/white text selection based on background brightness
+- **Mixed Formatting**: Combine background color, text color, and bold formatting
+- **Text-Only Highlighting**: Apply text color and bold formatting without background color
+- **Live Preview**: Buttons show real-time preview of formatting choices
 
 ## Support
 

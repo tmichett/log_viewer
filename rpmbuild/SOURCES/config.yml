@@ -1,10 +1,24 @@
 highlight_terms:
-- warn
+- bold: true
+  color: '#6495ed'
+  term: warn
 - err
-- fatal
-- alert
-- fail
-- installing
-- color: '#FF0000'
+- bold: true
+  color: '#FF0000'
+  term: fatal
+  text_color: '#FFFFFF'
+- color: '#FFAA00'
+  term: alert
+  text_color: '#000000'
+- bold: true
+  color: '#800080'
+  term: fail
+- bold: false
+  term: installing
+  text_color: '#00FF00'
+- bold: true
+  color: '#0066CC'
   term: running
-theme: system
+  text_color: '#FFFF00'
+line_wrap_enabled: false
+theme: light
