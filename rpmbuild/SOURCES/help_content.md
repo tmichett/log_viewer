@@ -108,6 +108,7 @@ highlight_terms:
 
 theme: "system"               # Options: system, light, dark
 line_wrap_enabled: false
+line_numbers_enabled: false
 ```
 
 ### Configuration Properties
@@ -139,6 +140,13 @@ line_wrap_enabled: false
 - Toggle line wrapping using **View** → **Line Wrap**
 - When enabled, long lines will wrap to fit the window width
 - When disabled, long lines extend horizontally with a scrollbar
+
+#### Line Numbers
+- Toggle line numbers using **View** → **Line Numbers**
+- When enabled, each line displays with a right-aligned line number (e.g., "     1: content")
+- Line numbers help with navigation and reference when discussing log contents
+- Setting is automatically saved to your configuration file
+- Can be toggled while viewing files - display refreshes automatically
 
 ## Performance
 

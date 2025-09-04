@@ -633,7 +633,8 @@ class HelpDialog(QDialog):
     color: "#ffff00"
   - "INFO"  # Uses default color
 theme: "system"  # Options: system, light, dark
-line_wrap_enabled: false</pre>
+line_wrap_enabled: false
+line_numbers_enabled: false</pre>
             
             <h2>Themes and Display</h2>
             <h3>Theme Options</h3>
@@ -1421,6 +1422,10 @@ class LogViewer(QMainWindow):
         # Line wrap state
         self.line_wrap_enabled = False
         
+        # Line numbers state
+        self.line_numbers_enabled = False
+        self.current_line_number = 1  # Track current line number for chunk processing
+        
         # Theme system
         self.current_theme_mode = ThemeMode.SYSTEM
         self.current_theme_colors = get_theme_colors(self.current_theme_mode)
@@ -1726,6 +1731,12 @@ class LogViewer(QMainWindow):
         self.line_wrap_action.setChecked(self.line_wrap_enabled)
         self.line_wrap_action.triggered.connect(self.toggle_line_wrap)
         
+        # Line numbers toggle
+        self.line_numbers_action = view_menu.addAction("Line Numbers")
+        self.line_numbers_action.setCheckable(True)
+        self.line_numbers_action.setChecked(self.line_numbers_enabled)
+        self.line_numbers_action.triggered.connect(self.toggle_line_numbers)
+        
         # Help menu
         help_menu = menubar.addMenu("Help")
         
@@ -1989,6 +2000,52 @@ class LogViewer(QMainWindow):
         wrap_status = "enabled" if self.line_wrap_enabled else "disabled"
         self.status_label.setText(f"Line wrap {wrap_status}")
 
+    def toggle_line_numbers(self):
+        """Toggle line numbers on/off in the text editor"""
+        self.line_numbers_enabled = not self.line_numbers_enabled
+        
+        # Update the menu action state if it exists
+        if hasattr(self, 'line_numbers_action'):
+            self.line_numbers_action.setChecked(self.line_numbers_enabled)
+        
+        # If we have content loaded, refresh the display
+        if hasattr(self, 'current_file') and self.current_file:
+            self.refresh_display()
+        
+        # Save the preference
+        self.save_app_config()
+        
+        # Update status
+        numbers_status = "enabled" if self.line_numbers_enabled else "disabled"
+        self.status_label.setText(f"Line numbers {numbers_status}")
+
+    def refresh_display(self):
+        """Refresh the current file display with current settings"""
+        if hasattr(self, 'current_file') and self.current_file and os.path.exists(self.current_file):
+            # Reset line counter
+            self.current_line_number = 1
+            # Reload the file
+            self.open_file_by_path(self.current_file)
+    
+    def add_line_numbers_to_chunk(self, chunk):
+        """Add line numbers to a text chunk"""
+        if not self.line_numbers_enabled:
+            return chunk
+        
+        lines = chunk.split('\n')
+        numbered_lines = []
+        
+        for i, line in enumerate(lines):
+            # Don't add line number to the last empty line if chunk ends with \n
+            if i == len(lines) - 1 and line == '':
+                numbered_lines.append(line)
+            else:
+                # Format with 6 digits, right-aligned, followed by: and space
+                numbered_lines.append(f"{self.current_line_number:6d}: {line}")
+                self.current_line_number += 1
+        
+        return '\n'.join(numbered_lines)
+
     def apply_line_wrap_setting(self):
         """Apply the current line wrap setting without saving to config"""
         try:
@@ -2034,6 +2091,9 @@ class LogViewer(QMainWindow):
             
             # Update line wrap preference
             config['line_wrap_enabled'] = self.line_wrap_enabled
+            
+            # Update line numbers preference  
+            config['line_numbers_enabled'] = self.line_numbers_enabled
             
             # Preserve highlight terms if they exist
             if self.highlight_terms:
@@ -2317,6 +2377,10 @@ class LogViewer(QMainWindow):
                         # Apply the loaded line wrap setting
                         self.apply_line_wrap_setting()
                     
+                    # Load line numbers preference if present
+                    if 'line_numbers_enabled' in config:
+                        self.line_numbers_enabled = config['line_numbers_enabled']
+                    
                     # Display which config file was loaded
                     user_config_path = os.path.join(os.path.expanduser('~'), 'logviewer_config.yml')
                     if self.config_path == user_config_path:
@@ -2342,6 +2406,10 @@ class LogViewer(QMainWindow):
             # Update line wrap menu action if it exists
             if hasattr(self, 'line_wrap_action'):
                 self.line_wrap_action.setChecked(self.line_wrap_enabled)
+                
+            # Update line numbers menu action if it exists
+            if hasattr(self, 'line_numbers_action'):
+                self.line_numbers_action.setChecked(self.line_numbers_enabled)
                 
             # Apply line wrap setting if text editor exists
             if hasattr(self, 'text_editor'):
@@ -2442,6 +2510,9 @@ class LogViewer(QMainWindow):
         self.text_editor.clear()
         self.status_label.setText(f"Loading file: {file_path}...")
         
+        # Reset line counter for line numbering
+        self.current_line_number = 1
+        
         # Show progress bar
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(True)
@@ -2464,11 +2535,14 @@ class LogViewer(QMainWindow):
     
     def on_chunk_ready(self, chunk, chunk_number, total_chunks):
         """Handle a chunk of text from the file loader"""
-        # Append to the total content
+        # Append to the total content (always store original content)
         self.total_content += chunk
         
+        # Process chunk with line numbers if enabled
+        display_chunk = self.add_line_numbers_to_chunk(chunk)
+        
         # Only update the display with this chunk, not the entire content
-        self.text_editor.append_text(chunk)
+        self.text_editor.append_text(display_chunk)
         
         # Update status
         self.status_label.setText(f"Loading chunk {chunk_number}/{total_chunks}...")
