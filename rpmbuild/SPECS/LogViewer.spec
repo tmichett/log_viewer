@@ -1,5 +1,5 @@
 %define name LogViewer
-%define version 3.7.1
+%define version 3.9.5
 %define release 0
 %define buildroot %{_tmppath}/%{name}-%{version}-%{release}-root
 
@@ -33,6 +33,7 @@ font size adjustment, and configurable term highlighting with custom colors.
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/opt/LogViewer
+mkdir -p $RPM_BUILD_ROOT/usr/bin
 mkdir -p $RPM_BUILD_ROOT/usr/share/applications
 mkdir -p $RPM_BUILD_ROOT/usr/share/doc/LogViewer
 mkdir -p $RPM_BUILD_ROOT/usr/share/icons/hicolor/32x32/apps
@@ -51,6 +52,9 @@ cp -p %{_sourcedir}/Install_README.md $RPM_BUILD_ROOT/usr/share/doc/LogViewer/RE
 # Copy desktop file
 cp -p %{_sourcedir}/LogViewer.desktop $RPM_BUILD_ROOT/usr/share/applications/
 
+# Create symbolic link in /usr/bin
+ln -s /opt/LogViewer/log_viewer_start.sh $RPM_BUILD_ROOT/usr/bin/LogViewer
+
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -65,9 +69,24 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,root,root) /usr/share/applications/LogViewer.desktop
 /usr/share/doc/LogViewer/README.md
 /usr/share/icons/hicolor/32x32/apps/LogViewer.png
+/usr/bin/LogViewer
 
 
 %changelog
+* Wed Jan 15 2025 Log Viewer Build <travis@michettetech.com> - 3.9.5-0
+- Version bump to 3.9.5
+- Major feature release with comprehensive log analysis capabilities
+- Enhanced user interface and user experience improvements
+- Improved performance and stability
+- All features from previous releases included and refined
+
+* Wed Jan 15 2025 Log Viewer Build <travis@michettetech.com> - 3.7.1-0
+- Version bump to 3.7.1
+- Added /usr/bin/LogViewer symbolic link for easier command-line access
+- Enhanced bookmark system with configurable colors and smart highlight detection
+- Added line number toggle feature
+- Improved term formatting dialog with intelligent color suggestions
+
 * Sun Aug 17 2025 Log Viewer Build <travis@michettetech.com> - 3.7.0-0
 - Version bump to 3.7.0
 - Updated all build configurations for consistent versioning

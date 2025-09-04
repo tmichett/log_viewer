@@ -30,7 +30,7 @@ def get_application_version():
                         return line.split('=')[1].strip()
         except FileNotFoundError:
             pass
-    return "3.0.0"  # Default fallback version
+    return "3.9.5"  # Default fallback version
 
 # Get application version
 APP_VERSION = get_application_version()
@@ -383,6 +383,13 @@ class LogHighlighter(QSyntaxHighlighter):
         # Track search-highlighted areas to avoid overriding them
         self.search_highlighted_start = None
         self.search_highlighted_end = None
+        
+        # Bookmark highlighting
+        self.bookmarked_lines = set()  # Set of bookmarked line numbers (1-based)
+        self.bookmark_format = QTextCharFormat()
+        # Default light blue background - will be updated by main window
+        self.bookmark_format.setBackground(QColor(100, 200, 255))  
+        self.bookmark_format.setForeground(QColor(0, 0, 0))
 
     def set_highlight_terms(self, terms):
         self.highlight_terms = []
@@ -451,12 +458,51 @@ class LogHighlighter(QSyntaxHighlighter):
         """Clear the search-highlighted range"""
         self.search_highlighted_start = None
         self.search_highlighted_end = None
+    
+    def set_bookmarked_lines(self, bookmarked_lines):
+        """Set the lines that should have bookmark highlighting"""
+        self.bookmarked_lines = set(bookmarked_lines)
+        self.rehighlight()
+    
+    def add_bookmark_line(self, line_number):
+        """Add a line to bookmark highlighting"""
+        self.bookmarked_lines.add(line_number)
+        # Only rehighlight the specific block for performance
+        if hasattr(self, 'document') and self.document():
+            block = self.document().findBlockByNumber(line_number - 1)
+            if block.isValid():
+                self.rehighlightBlock(block)
+    
+    def remove_bookmark_line(self, line_number):
+        """Remove a line from bookmark highlighting"""
+        self.bookmarked_lines.discard(line_number)
+        # Only rehighlight the specific block for performance
+        if hasattr(self, 'document') and self.document():
+            block = self.document().findBlockByNumber(line_number - 1)
+            if block.isValid():
+                self.rehighlightBlock(block)
+    
+    def update_bookmark_format(self, bookmark_format):
+        """Update the bookmark highlighting format"""
+        self.bookmark_format = bookmark_format
+        # Rehighlight all bookmarked lines with the new format
+        if self.bookmarked_lines and hasattr(self, 'document') and self.document():
+            for line_number in self.bookmarked_lines:
+                block = self.document().findBlockByNumber(line_number - 1)
+                if block.isValid():
+                    self.rehighlightBlock(block)
 
     def highlightBlock(self, text):
         # Get the current block's position in the document
         block = self.currentBlock()
         block_start = block.position()
         block_end = block_start + block.length()
+        line_number = block.blockNumber() + 1  # 1-based line number
+        
+        # Check if this line is bookmarked (highest priority)
+        if line_number in self.bookmarked_lines:
+            self.setFormat(0, len(text), self.bookmark_format)
+            return  # Bookmark highlighting takes precedence
         
         # Check if this block overlaps with search-highlighted area
         if (self.search_highlighted_start is not None and 
@@ -633,7 +679,8 @@ class HelpDialog(QDialog):
     color: "#ffff00"
   - "INFO"  # Uses default color
 theme: "system"  # Options: system, light, dark
-line_wrap_enabled: false</pre>
+line_wrap_enabled: false
+line_numbers_enabled: false</pre>
             
             <h2>Themes and Display</h2>
             <h3>Theme Options</h3>
@@ -814,11 +861,14 @@ class AboutDialog(QDialog):
         layout.addLayout(btn_layout)
 
 class TermFormatDialog(QDialog):
+    # Signal to notify when apply is pressed
+    applied = pyqtSignal(dict)
+    
     def __init__(self, parent=None, term="", bg_color=None, text_color=None, bold=False):
         super().__init__(parent)
         self.setWindowTitle("Term Formatting")
         self.setModal(True)
-        self.resize(400, 300)
+        self.resize(450, 350)  # Increased size for new UI elements
         
         # Get theme colors from parent
         if parent and hasattr(parent, 'theme_colors'):
@@ -863,28 +913,68 @@ class TermFormatDialog(QDialog):
                 border-radius: 3px;
             }}
         """)
+        # Connect text change to smart color suggestions
+        self.term_edit.textChanged.connect(self.on_term_text_changed)
         term_layout.addWidget(self.term_edit)
         layout.addLayout(term_layout)
         
         # Background color
-        bg_layout = QHBoxLayout()
-        bg_layout.addWidget(QLabel("Background Color:"))
-        self.bg_color_btn = QPushButton("Choose Color")
-        self.bg_color = QColor(bg_color) if bg_color else QColor(100, 149, 237)
-        self.bg_color_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {self.bg_color.name()};
-                color: {'#000000' if self.bg_color.lightness() > 128 else '#ffffff'};
+        bg_layout = QVBoxLayout()
+        bg_label_layout = QHBoxLayout()
+        bg_label_layout.addWidget(QLabel("Background Color:"))
+        bg_layout.addLayout(bg_label_layout)
+        
+        # Color selection buttons layout
+        color_buttons_layout = QHBoxLayout()
+        
+        # Auto/Smart color presets
+        self.smart_colors = {
+            'Auto': None,  # Will be determined by term content
+            'Error': '#FF4444',    # Red for errors
+            'Warning': '#FFA500',  # Orange for warnings 
+            'Info': '#4A90E2',     # Blue for info
+            'Success': '#28A745',  # Green for success
+            'Debug': '#6C757D'     # Gray for debug
+        }
+        
+        # Add smart color buttons
+        from PyQt6.QtWidgets import QComboBox
+        self.bg_preset_combo = QComboBox()
+        self.bg_preset_combo.addItem("Smart Colors...")
+        for preset_name in self.smart_colors.keys():
+            self.bg_preset_combo.addItem(preset_name)
+        
+        self.bg_preset_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
                 border: 1px solid {self.theme_colors.border_color};
-                padding: 8px;
+                padding: 5px;
                 border-radius: 3px;
+                min-width: 100px;
             }}
-            QPushButton:hover {{
-                border: 2px solid {self.theme_colors.border_color};
+            QComboBox:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+            }}
+            QComboBox::down-arrow {{
+                width: 12px;
+                height: 12px;
             }}
         """)
+        self.bg_preset_combo.currentTextChanged.connect(self.on_preset_color_changed)
+        color_buttons_layout.addWidget(self.bg_preset_combo)
+        
+        # Custom color picker button
+        self.bg_color_btn = QPushButton("Custom Color")
+        self.bg_color = QColor(bg_color) if bg_color else QColor(100, 149, 237)
+        self.update_bg_color_button()
         self.bg_color_btn.clicked.connect(self.choose_bg_color)
-        bg_layout.addWidget(self.bg_color_btn)
+        color_buttons_layout.addWidget(self.bg_color_btn)
+        
+        bg_layout.addLayout(color_buttons_layout)
         layout.addLayout(bg_layout)
         
         # Text color
@@ -948,6 +1038,25 @@ class TermFormatDialog(QDialog):
         
         # Buttons
         button_layout = QHBoxLayout()
+        
+        # Apply button
+        apply_btn = QPushButton("Apply")
+        apply_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        apply_btn.clicked.connect(self.apply_changes)
+        button_layout.addWidget(apply_btn)
+        
+        # OK button
         ok_btn = QPushButton("OK")
         ok_btn.setStyleSheet(f"""
             QPushButton {{
@@ -962,6 +1071,8 @@ class TermFormatDialog(QDialog):
             }}
         """)
         ok_btn.clicked.connect(self.accept)
+        
+        # Cancel button  
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setStyleSheet(f"""
             QPushButton {{
@@ -976,26 +1087,93 @@ class TermFormatDialog(QDialog):
             }}
         """)
         cancel_btn.clicked.connect(self.reject)
+        
         button_layout.addWidget(ok_btn)
         button_layout.addWidget(cancel_btn)
         layout.addLayout(button_layout)
+        
+        # Initialize color button appearance and smart suggestions
+        self.update_bg_color_button()
+        self.on_term_text_changed()  # Set initial smart color suggestion
+    
+    def on_preset_color_changed(self, preset_name):
+        """Handle preset color selection from combo box"""
+        if preset_name == "Smart Colors...":
+            return
+            
+        if preset_name == "Auto":
+            # Determine color based on term content
+            self.bg_color = self.determine_smart_color()
+        elif preset_name in self.smart_colors:
+            color_hex = self.smart_colors[preset_name]
+            if color_hex:
+                self.bg_color = QColor(color_hex)
+        
+        self.update_bg_color_button()
+        # Reset combo box to default
+        self.bg_preset_combo.setCurrentIndex(0)
+    
+    def determine_smart_color(self):
+        """Determine appropriate color based on term content"""
+        term_lower = self.term_edit.text().lower()
+        
+        # Check for common log level patterns
+        if any(keyword in term_lower for keyword in ['error', 'err', 'fatal', 'critical', 'fail']):
+            return QColor('#FF4444')  # Red
+        elif any(keyword in term_lower for keyword in ['warning', 'warn', 'caution']):
+            return QColor('#FFA500')  # Orange
+        elif any(keyword in term_lower for keyword in ['success', 'complete', 'done', 'ok']):
+            return QColor('#28A745')  # Green
+        elif any(keyword in term_lower for keyword in ['info', 'information']):
+            return QColor('#4A90E2')  # Blue
+        elif any(keyword in term_lower for keyword in ['debug', 'trace', 'verbose']):
+            return QColor('#6C757D')  # Gray
+        else:
+            return QColor(100, 149, 237)  # Default cornflower blue
+    
+    def on_term_text_changed(self):
+        """Handle term text changes to suggest smart colors"""
+        # Update the "Auto" option in the combo box with suggested color info
+        suggested_color = self.determine_smart_color()
+        color_name = self.get_color_name(suggested_color)
+        
+        # Update the Auto option text to show the suggested color
+        auto_index = self.bg_preset_combo.findText("Auto")
+        if auto_index >= 0:
+            self.bg_preset_combo.setItemText(auto_index, f"Auto ({color_name})")
+    
+    def get_color_name(self, color):
+        """Get a human-readable name for a color"""
+        color_hex = color.name().upper()
+        color_map = {
+            '#FF4444': 'Red',
+            '#FFA500': 'Orange', 
+            '#28A745': 'Green',
+            '#4A90E2': 'Blue',
+            '#6C757D': 'Gray'
+        }
+        return color_map.get(color_hex, 'Default')
+    
+    def update_bg_color_button(self):
+        """Update the background color button appearance"""
+        self.bg_color_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.bg_color.name()};
+                color: {'#000000' if self.bg_color.lightness() > 128 else '#ffffff'};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                border: 2px solid {self.theme_colors.border_color};
+            }}
+        """)
     
     def choose_bg_color(self):
         color = QColorDialog.getColor(self.bg_color, self, "Choose Background Color")
         if color.isValid():
             self.bg_color = color
-            self.bg_color_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {color.name()};
-                    color: {'#000000' if color.lightness() > 128 else '#ffffff'};
-                    border: 1px solid {self.theme_colors.border_color};
-                    padding: 8px;
-                    border-radius: 3px;
-                }}
-                QPushButton:hover {{
-                    border: 2px solid {self.theme_colors.border_color};
-                }}
-            """)
+            self.update_bg_color_button()
     
     def choose_text_color(self):
         initial_color = self.text_color if self.text_color else QColor(0, 0, 0)
@@ -1038,6 +1216,11 @@ class TermFormatDialog(QDialog):
                 }}
             """)
     
+    def apply_changes(self):
+        """Apply the current formatting changes without closing the dialog"""
+        result = self.get_result()
+        self.applied.emit(result)
+    
     def get_result(self):
         result = {
             'term': self.term_edit.text(),
@@ -1054,6 +1237,8 @@ class ConfigDialog(QDialog):
         self.setWindowTitle("Configure Highlighting")
         self.resize(400, 300)
         self.highlight_terms = highlight_terms or []
+        # Store original terms for restoration on cancel
+        self.original_highlight_terms = [term.copy() if isinstance(term, dict) else term for term in self.highlight_terms]
         
         # Use parent's theme
         if parent and hasattr(parent, 'current_theme_colors'):
@@ -1165,6 +1350,12 @@ class ConfigDialog(QDialog):
     def add_term(self):
         dialog = TermFormatDialog(self)
         
+        # Connect apply signal to preview the changes
+        dialog.applied.connect(lambda term_data: self.preview_term_changes(term_data, is_new=True))
+        # Store original state for restoration if dialog is cancelled
+        original_terms = [term.copy() if isinstance(term, dict) else term for term in self.highlight_terms]
+        dialog.finished.connect(lambda result: self.restore_on_cancel(result, original_terms) if result == 0 else None)
+        
         # Use try/except to handle different PyQt versions for dialog execution
         try:
             result = dialog.exec()
@@ -1180,6 +1371,9 @@ class ConfigDialog(QDialog):
             if term_data['term']:  # Only add if term is not empty
                 self.highlight_terms.append(term_data)
                 self.update_terms_list()
+                # Apply changes to main window
+                if hasattr(self.parent(), 'highlighter') and hasattr(self.parent(), 'highlighter'):
+                    self.parent().highlighter.set_highlight_terms(self.highlight_terms)
     
     def edit_term(self):
         current_row = self.terms_list.currentRow()
@@ -1200,6 +1394,12 @@ class ConfigDialog(QDialog):
             dialog = TermFormatDialog(self, term=term, bg_color=bg_color, 
                                     text_color=text_color, bold=bold)
             
+            # Connect apply signal to preview the changes
+            dialog.applied.connect(lambda term_data: self.preview_term_changes(term_data, is_new=False, index=current_row))
+            # Store original state for restoration if dialog is cancelled
+            original_terms = [term.copy() if isinstance(term, dict) else term for term in self.highlight_terms]
+            dialog.finished.connect(lambda result: self.restore_on_cancel(result, original_terms) if result == 0 else None)
+            
             # Use try/except to handle different PyQt versions for dialog execution
             try:
                 result = dialog.exec()
@@ -1215,6 +1415,57 @@ class ConfigDialog(QDialog):
                 if term_data['term']:  # Only update if term is not empty
                     self.highlight_terms[current_row] = term_data
                     self.update_terms_list()
+                    # Apply changes to main window
+                    if hasattr(self.parent(), 'highlighter') and hasattr(self.parent(), 'highlighter'):
+                        self.parent().highlighter.set_highlight_terms(self.highlight_terms)
+    
+    def preview_term_changes(self, term_data, is_new=False, index=None):
+        """Preview term changes in the main window without permanently saving them"""
+        if not term_data['term']:  # Don't preview empty terms
+            return
+            
+        # Create a temporary copy of highlight terms for preview
+        preview_terms = self.highlight_terms.copy()
+        
+        if is_new:
+            # Add the new term temporarily
+            preview_terms.append(term_data)
+        else:
+            # Update existing term temporarily
+            if index is not None and 0 <= index < len(preview_terms):
+                preview_terms[index] = term_data
+        
+        # Apply preview to main window highlighter
+        if hasattr(self.parent(), 'highlighter'):
+            self.parent().highlighter.set_highlight_terms(preview_terms)
+            # Force a repaint to show the changes immediately
+            if hasattr(self.parent(), 'text_editor'):
+                self.parent().text_editor.update()
+    
+    def reject(self):
+        """Override reject to restore original highlighting when cancelled"""
+        # Restore original highlighting
+        if hasattr(self.parent(), 'highlighter'):
+            self.parent().highlighter.set_highlight_terms(self.original_highlight_terms)
+            # Force a repaint to show the restored highlighting
+            if hasattr(self.parent(), 'text_editor'):
+                self.parent().text_editor.update()
+        super().reject()
+    
+    def accept(self):
+        """Override accept to ensure final changes are applied"""
+        # Apply final changes to main window
+        if hasattr(self.parent(), 'highlighter'):
+            self.parent().highlighter.set_highlight_terms(self.highlight_terms)
+        super().accept()
+    
+    def restore_on_cancel(self, result, original_terms):
+        """Restore highlighting when TermFormatDialog is cancelled"""
+        if result == 0:  # Dialog was rejected/cancelled
+            if hasattr(self.parent(), 'highlighter'):
+                self.parent().highlighter.set_highlight_terms(original_terms)
+                if hasattr(self.parent(), 'text_editor'):
+                    self.parent().text_editor.update()
     
     def remove_term(self):
         current_row = self.terms_list.currentRow()
@@ -1244,6 +1495,149 @@ class ConfigDialog(QDialog):
                 QMessageBox.information(self, "Success", f"Configuration saved to {file_name}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save configuration: {str(e)}")
+
+class BookmarkListDialog(QDialog):
+    def __init__(self, parent=None, bookmarks=None):
+        super().__init__(parent)
+        self.setWindowTitle("Bookmarks")
+        self.resize(600, 400)
+        self.bookmarks = bookmarks or []
+        self.selected_bookmark = None
+        
+        # Use parent's theme
+        if parent and hasattr(parent, 'current_theme_colors'):
+            self.theme_colors = parent.current_theme_colors
+        else:
+            self.theme_colors = get_theme_colors(ThemeMode.SYSTEM)
+        
+        layout = QVBoxLayout(self)
+        
+        # Instructions
+        instructions = QLabel("Double-click a bookmark to navigate to it, or select and click 'Go To'.")
+        instructions.setStyleSheet(f"color: {self.theme_colors.window_text};")
+        layout.addWidget(instructions)
+        
+        # Bookmark list
+        from PyQt6.QtWidgets import QListWidget, QListWidgetItem
+        self.bookmark_list = QListWidget()
+        self.bookmark_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {self.theme_colors.base_bg};
+                color: {self.theme_colors.text_color};
+                border: 1px solid {self.theme_colors.border_color};
+                selection-background-color: {self.theme_colors.highlight_bg};
+            }}
+        """)
+        
+        # Populate bookmark list
+        for bookmark in self.bookmarks:
+            line_content = bookmark['content'][:60]  # Limit display length
+            item_text = f"Line {bookmark['line']:4d}: {line_content}"
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.ItemDataRole.UserRole, bookmark)  # Store bookmark data
+            self.bookmark_list.addItem(item)
+        
+        # Handle double-click to navigate
+        self.bookmark_list.itemDoubleClicked.connect(self.on_bookmark_double_clicked)
+        layout.addWidget(self.bookmark_list)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        goto_btn = QPushButton("Go To")
+        goto_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        goto_btn.clicked.connect(self.goto_selected)
+        button_layout.addWidget(goto_btn)
+        
+        delete_btn = QPushButton("Delete")
+        delete_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        delete_btn.clicked.connect(self.delete_selected)
+        button_layout.addWidget(delete_btn)
+        
+        button_layout.addStretch()
+        
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.theme_colors.button_bg};
+                color: {self.theme_colors.button_text};
+                border: 1px solid {self.theme_colors.border_color};
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {self.theme_colors.hover_color};
+            }}
+        """)
+        close_btn.clicked.connect(self.reject)
+        button_layout.addWidget(close_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Apply dialog theme
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {self.theme_colors.window_bg};
+                color: {self.theme_colors.window_text};
+            }}
+        """)
+    
+    def on_bookmark_double_clicked(self, item):
+        """Handle double-click on bookmark item"""
+        bookmark = item.data(Qt.ItemDataRole.UserRole)
+        if bookmark:
+            self.selected_bookmark = bookmark
+            self.accept()
+    
+    def goto_selected(self):
+        """Go to the selected bookmark"""
+        current_item = self.bookmark_list.currentItem()
+        if current_item:
+            bookmark = current_item.data(Qt.ItemDataRole.UserRole)
+            if bookmark:
+                self.selected_bookmark = bookmark
+                self.accept()
+    
+    def delete_selected(self):
+        """Delete the selected bookmark"""
+        current_row = self.bookmark_list.currentRow()
+        if current_row >= 0:
+            bookmark = self.bookmarks[current_row]
+            reply = QMessageBox.question(self, "Delete Bookmark", 
+                                       f"Delete bookmark at line {bookmark['line']}?",
+                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                # Remove from both the dialog list and parent's bookmark list
+                self.bookmarks.pop(current_row)
+                self.bookmark_list.takeItem(current_row)
+                
+                # Also remove from parent's bookmarks if available
+                if self.parent() and hasattr(self.parent(), 'bookmarks'):
+                    self.parent().bookmarks = [b for b in self.parent().bookmarks if b['line'] != bookmark['line']]
+                    self.parent().update_bookmark_highlights()
 
 # WorkerSignals class to enable signal communication from QRunnable worker
 class WorkerSignals(QObject):
@@ -1342,6 +1736,7 @@ class OptimizedTextEdit(QPlainTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setReadOnly(True)
+        self.main_window = parent  # Store reference to main window
         
         # Use try/except to handle different PyQt versions
         try:
@@ -1382,6 +1777,30 @@ class OptimizedTextEdit(QPlainTextEdit):
         self.setUpdatesEnabled(False)
         self.setTextCursor(cursor)
         self.setUpdatesEnabled(True)
+    
+    def contextMenuEvent(self, event):
+        """Handle right-click context menu for bookmarks"""
+        if not self.main_window:
+            return
+        
+        cursor = self.cursorForPosition(event.pos())
+        line_number = cursor.blockNumber() + 1  # Line numbers are 1-based
+        
+        # Create context menu
+        menu = QMenu(self)
+        
+        # Check if current line is bookmarked
+        is_bookmarked = any(bookmark['line'] == line_number for bookmark in self.main_window.bookmarks)
+        
+        if is_bookmarked:
+            action = menu.addAction("Remove Bookmark")
+            action.triggered.connect(lambda: self.main_window.toggle_bookmark_at_line(line_number))
+        else:
+            action = menu.addAction("Add Bookmark")
+            action.triggered.connect(lambda: self.main_window.toggle_bookmark_at_line(line_number))
+        
+        # Show menu at cursor position
+        menu.exec(event.globalPos())
 
 # Compatibility helper functions
 def safe_single_shot(ms, callback):
@@ -1421,6 +1840,17 @@ class LogViewer(QMainWindow):
         # Line wrap state
         self.line_wrap_enabled = False
         
+        # Line numbers state
+        self.line_numbers_enabled = False
+        self.current_line_number = 1  # Track current line number for chunk processing
+        
+        # Bookmark system
+        self.bookmarks = []  # List of bookmark dictionaries with line numbers and content
+        self.current_bookmark_index = -1  # Current bookmark for navigation
+        self.bookmark_highlight_color = "#64C8FF"  # Default light blue color (100, 200, 255)
+        self.bookmark_highlight_format = QTextCharFormat()
+        self.update_bookmark_highlight_format()
+        
         # Theme system
         self.current_theme_mode = ThemeMode.SYSTEM
         self.current_theme_colors = get_theme_colors(self.current_theme_mode)
@@ -1440,7 +1870,7 @@ class LogViewer(QMainWindow):
         layout = QVBoxLayout(central_widget)
 
         # Create optimized text editor
-        self.text_editor = OptimizedTextEdit()
+        self.text_editor = OptimizedTextEdit(self)
         # Style will be applied by theme system
         layout.addWidget(self.text_editor)
         
@@ -1452,6 +1882,8 @@ class LogViewer(QMainWindow):
 
         # Initialize the highlighter
         self.highlighter = LogHighlighter(self.text_editor.document())
+        # Set initial bookmark format
+        self.highlighter.update_bookmark_format(self.bookmark_highlight_format)
 
         # Create search bar and buttons layout
         search_layout = QHBoxLayout()
@@ -1726,6 +2158,48 @@ class LogViewer(QMainWindow):
         self.line_wrap_action.setChecked(self.line_wrap_enabled)
         self.line_wrap_action.triggered.connect(self.toggle_line_wrap)
         
+        # Line numbers toggle
+        self.line_numbers_action = view_menu.addAction("Line Numbers")
+        self.line_numbers_action.setCheckable(True)
+        self.line_numbers_action.setChecked(self.line_numbers_enabled)
+        self.line_numbers_action.triggered.connect(self.toggle_line_numbers)
+        
+        # Bookmarks menu
+        bookmarks_menu = menubar.addMenu("Bookmarks")
+        
+        # Toggle bookmark action
+        toggle_bookmark_action = bookmarks_menu.addAction("Toggle Bookmark")
+        toggle_bookmark_action.setShortcut("Ctrl+B")
+        toggle_bookmark_action.triggered.connect(self.toggle_bookmark)
+        
+        bookmarks_menu.addSeparator()
+        
+        # Navigate bookmarks
+        next_bookmark_action = bookmarks_menu.addAction("Next Bookmark")
+        next_bookmark_action.setShortcut("F2")
+        next_bookmark_action.triggered.connect(self.next_bookmark)
+        
+        prev_bookmark_action = bookmarks_menu.addAction("Previous Bookmark")
+        prev_bookmark_action.setShortcut("Shift+F2")
+        prev_bookmark_action.triggered.connect(self.prev_bookmark)
+        
+        bookmarks_menu.addSeparator()
+        
+        # Bookmark list
+        list_bookmarks_action = bookmarks_menu.addAction("List All Bookmarks")
+        list_bookmarks_action.setShortcut("Ctrl+Shift+B")
+        list_bookmarks_action.triggered.connect(self.list_bookmarks)
+        
+        # Clear all bookmarks
+        clear_bookmarks_action = bookmarks_menu.addAction("Clear All Bookmarks")
+        clear_bookmarks_action.triggered.connect(self.clear_all_bookmarks)
+        
+        bookmarks_menu.addSeparator()
+        
+        # Configure bookmark color
+        config_bookmark_color_action = bookmarks_menu.addAction("Configure Bookmark Color")
+        config_bookmark_color_action.triggered.connect(self.configure_bookmark_color)
+        
         # Help menu
         help_menu = menubar.addMenu("Help")
         
@@ -1759,6 +2233,16 @@ class LogViewer(QMainWindow):
         
         find_prev_shortcut = QShortcut(QKeySequence("Shift+F3"), self)
         find_prev_shortcut.activated.connect(self.find_previous)
+        
+        # Bookmark shortcuts (Ctrl+B is handled by menu action)
+        next_bookmark_shortcut = QShortcut(QKeySequence("F2"), self)
+        next_bookmark_shortcut.activated.connect(self.next_bookmark)
+        
+        prev_bookmark_shortcut = QShortcut(QKeySequence("Shift+F2"), self)
+        prev_bookmark_shortcut.activated.connect(self.prev_bookmark)
+        
+        list_bookmarks_shortcut = QShortcut(QKeySequence("Ctrl+Shift+B"), self)
+        list_bookmarks_shortcut.activated.connect(self.list_bookmarks)
         
         # Clear search shortcut
         clear_search_shortcut = QShortcut(QKeySequence("Escape"), self)
@@ -1989,6 +2473,52 @@ class LogViewer(QMainWindow):
         wrap_status = "enabled" if self.line_wrap_enabled else "disabled"
         self.status_label.setText(f"Line wrap {wrap_status}")
 
+    def toggle_line_numbers(self):
+        """Toggle line numbers on/off in the text editor"""
+        self.line_numbers_enabled = not self.line_numbers_enabled
+        
+        # Update the menu action state if it exists
+        if hasattr(self, 'line_numbers_action'):
+            self.line_numbers_action.setChecked(self.line_numbers_enabled)
+        
+        # If we have content loaded, refresh the display
+        if hasattr(self, 'current_file') and self.current_file:
+            self.refresh_display()
+        
+        # Save the preference
+        self.save_app_config()
+        
+        # Update status
+        numbers_status = "enabled" if self.line_numbers_enabled else "disabled"
+        self.status_label.setText(f"Line numbers {numbers_status}")
+
+    def refresh_display(self):
+        """Refresh the current file display with current settings"""
+        if hasattr(self, 'current_file') and self.current_file and os.path.exists(self.current_file):
+            # Reset line counter
+            self.current_line_number = 1
+            # Reload the file
+            self.open_file_by_path(self.current_file)
+    
+    def add_line_numbers_to_chunk(self, chunk):
+        """Add line numbers to a text chunk"""
+        if not self.line_numbers_enabled:
+            return chunk
+        
+        lines = chunk.split('\n')
+        numbered_lines = []
+        
+        for i, line in enumerate(lines):
+            # Don't add line number to the last empty line if chunk ends with \n
+            if i == len(lines) - 1 and line == '':
+                numbered_lines.append(line)
+            else:
+                # Format with 6 digits, right-aligned, followed by: and space
+                numbered_lines.append(f"{self.current_line_number:6d}: {line}")
+                self.current_line_number += 1
+        
+        return '\n'.join(numbered_lines)
+
     def apply_line_wrap_setting(self):
         """Apply the current line wrap setting without saving to config"""
         try:
@@ -2034,6 +2564,18 @@ class LogViewer(QMainWindow):
             
             # Update line wrap preference
             config['line_wrap_enabled'] = self.line_wrap_enabled
+            
+            # Update line numbers preference  
+            config['line_numbers_enabled'] = self.line_numbers_enabled
+            
+            # Update bookmark highlight color
+            config['bookmark_highlight_color'] = self.bookmark_highlight_color
+            
+            # Save bookmarks (only for current file if available)
+            if hasattr(self, 'current_file') and self.current_file and self.bookmarks:
+                if 'bookmarks' not in config:
+                    config['bookmarks'] = {}
+                config['bookmarks'][self.current_file] = self.bookmarks
             
             # Preserve highlight terms if they exist
             if self.highlight_terms:
@@ -2295,6 +2837,194 @@ class LogViewer(QMainWindow):
             # Trigger rehighlighting to restore config-based highlights
             self.highlighter.rehighlight()
 
+    # Bookmark functionality
+    def toggle_bookmark(self):
+        """Toggle bookmark at current cursor position"""
+        cursor = self.text_editor.textCursor()
+        line_number = cursor.blockNumber() + 1  # Line numbers are 1-based
+        self.toggle_bookmark_at_line(line_number)
+    
+    def toggle_bookmark_at_line(self, line_number):
+        """Toggle bookmark at specific line number"""
+        # Check if bookmark already exists at this line
+        existing_bookmark = None
+        for bookmark in self.bookmarks:
+            if bookmark['line'] == line_number:
+                existing_bookmark = bookmark
+                break
+        
+        if existing_bookmark:
+            # Remove existing bookmark
+            self.bookmarks.remove(existing_bookmark)
+            self.status_label.setText(f"Bookmark removed from line {line_number}")
+        else:
+            # Add new bookmark
+            # Get line content for display purposes
+            block = self.text_editor.document().findBlockByNumber(line_number - 1)
+            line_content = block.text()[:50]  # First 50 characters as preview
+            if len(block.text()) > 50:
+                line_content += "..."
+            
+            bookmark = {
+                'line': line_number,
+                'content': line_content,
+                'timestamp': time.time()
+            }
+            self.bookmarks.append(bookmark)
+            # Sort bookmarks by line number
+            self.bookmarks.sort(key=lambda x: x['line'])
+            self.status_label.setText(f"Bookmark added at line {line_number}")
+        
+        # Update visual indicators
+        self.update_bookmark_highlights()
+    
+    def next_bookmark(self):
+        """Navigate to next bookmark"""
+        if not self.bookmarks:
+            self.status_label.setText("No bookmarks available")
+            return
+        
+        current_line = self.text_editor.textCursor().blockNumber() + 1
+        
+        # Find next bookmark after current line
+        next_bookmark = None
+        for bookmark in self.bookmarks:
+            if bookmark['line'] > current_line:
+                next_bookmark = bookmark
+                break
+        
+        # If no bookmark after current line, wrap to first bookmark
+        if not next_bookmark:
+            next_bookmark = self.bookmarks[0]
+        
+        self.goto_bookmark(next_bookmark)
+    
+    def prev_bookmark(self):
+        """Navigate to previous bookmark"""
+        if not self.bookmarks:
+            self.status_label.setText("No bookmarks available")
+            return
+        
+        current_line = self.text_editor.textCursor().blockNumber() + 1
+        
+        # Find previous bookmark before current line
+        prev_bookmark = None
+        for bookmark in reversed(self.bookmarks):
+            if bookmark['line'] < current_line:
+                prev_bookmark = bookmark
+                break
+        
+        # If no bookmark before current line, wrap to last bookmark
+        if not prev_bookmark:
+            prev_bookmark = self.bookmarks[-1]
+        
+        self.goto_bookmark(prev_bookmark)
+    
+    def goto_bookmark(self, bookmark):
+        """Navigate to a specific bookmark"""
+        line_number = bookmark['line']
+        
+        # Move cursor to the bookmarked line
+        cursor = self.text_editor.textCursor()
+        
+        # Go to the specific line (line_number - 1 because it's 0-based internally)
+        block = self.text_editor.document().findBlockByNumber(line_number - 1)
+        cursor.setPosition(block.position())
+        
+        # Set cursor and center the view
+        self.text_editor.setTextCursor(cursor)
+        self.text_editor.centerCursor()
+        
+        # Update status
+        self.status_label.setText(f"Navigated to bookmark at line {line_number}: {bookmark['content']}")
+    
+    def list_bookmarks(self):
+        """Show dialog with all bookmarks"""
+        if not self.bookmarks:
+            QMessageBox.information(self, "Bookmarks", "No bookmarks available.")
+            return
+        
+        dialog = BookmarkListDialog(self, self.bookmarks)
+        result = dialog.exec()
+        
+        # If user selected a bookmark, navigate to it
+        if result == QDialog.DialogCode.Accepted and dialog.selected_bookmark:
+            self.goto_bookmark(dialog.selected_bookmark)
+    
+    def clear_all_bookmarks(self):
+        """Clear all bookmarks after confirmation"""
+        if not self.bookmarks:
+            self.status_label.setText("No bookmarks to clear")
+            return
+        
+        reply = QMessageBox.question(self, "Clear Bookmarks", 
+                                   f"Are you sure you want to clear all {len(self.bookmarks)} bookmarks?",
+                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                   QMessageBox.StandardButton.No)
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.bookmarks.clear()
+            self.update_bookmark_highlights()
+            self.status_label.setText("All bookmarks cleared")
+    
+    def configure_bookmark_color(self):
+        """Open color picker dialog to configure bookmark highlight color"""
+        current_color = QColor(self.bookmark_highlight_color)
+        color = QColorDialog.getColor(current_color, self, "Choose Bookmark Highlight Color")
+        
+        if color.isValid():
+            # Update bookmark color
+            self.bookmark_highlight_color = color.name()
+            self.update_bookmark_highlight_format()
+            
+            # Update existing bookmarks with new color
+            if self.bookmarks:
+                self.update_bookmark_highlights()
+            
+            # Save configuration
+            self.save_app_config()
+            
+            # Update status
+            self.status_label.setText(f"Bookmark highlight color changed to {color.name()}")
+    
+    def update_bookmark_highlight_format(self):
+        """Update the bookmark highlight format based on configured color"""
+        color = QColor(self.bookmark_highlight_color)
+        self.bookmark_highlight_format.setBackground(color)
+        # Auto-select text color based on background brightness
+        if color.lightness() > 128:
+            self.bookmark_highlight_format.setForeground(QColor(0, 0, 0))  # Dark text
+        else:
+            self.bookmark_highlight_format.setForeground(QColor(255, 255, 255))  # Light text
+        
+        # Update highlighter if it exists
+        if hasattr(self, 'highlighter'):
+            self.highlighter.update_bookmark_format(self.bookmark_highlight_format)
+    
+    def update_bookmark_highlights(self):
+        """Update visual highlighting for bookmarked lines"""
+        if hasattr(self, 'highlighter'):
+            # Extract line numbers from bookmarks
+            bookmarked_lines = [bookmark['line'] for bookmark in self.bookmarks]
+            self.highlighter.set_bookmarked_lines(bookmarked_lines)
+    
+    def load_bookmarks_for_current_file(self):
+        """Load bookmarks for the currently open file"""
+        if not hasattr(self, 'current_file') or not self.current_file:
+            return
+        
+        try:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    config = yaml.safe_load(f) or {}
+                    if 'bookmarks' in config and self.current_file in config['bookmarks']:
+                        self.bookmarks = config['bookmarks'][self.current_file]
+                        self.update_bookmark_highlights()
+                        if self.bookmarks:
+                            self.status_label.setText(f"Loaded {len(self.bookmarks)} bookmarks for this file")
+        except Exception as e:
+            print(f"Error loading bookmarks: {e}")
+
     def load_config(self):
         try:
             if os.path.exists(self.config_path):
@@ -2316,6 +3046,22 @@ class LogViewer(QMainWindow):
                         self.line_wrap_enabled = config['line_wrap_enabled']
                         # Apply the loaded line wrap setting
                         self.apply_line_wrap_setting()
+                    
+                    # Load line numbers preference if present
+                    if 'line_numbers_enabled' in config:
+                        self.line_numbers_enabled = config['line_numbers_enabled']
+                    
+                    # Load bookmark highlight color if present
+                    if 'bookmark_highlight_color' in config:
+                        self.bookmark_highlight_color = config['bookmark_highlight_color']
+                        self.update_bookmark_highlight_format()
+                    
+                    # Load bookmarks for current file if present
+                    if hasattr(self, 'current_file') and self.current_file and 'bookmarks' in config:
+                        file_bookmarks = config['bookmarks'].get(self.current_file, [])
+                        if file_bookmarks:
+                            self.bookmarks = file_bookmarks
+                            self.update_bookmark_highlights()
                     
                     # Display which config file was loaded
                     user_config_path = os.path.join(os.path.expanduser('~'), 'logviewer_config.yml')
@@ -2342,6 +3088,10 @@ class LogViewer(QMainWindow):
             # Update line wrap menu action if it exists
             if hasattr(self, 'line_wrap_action'):
                 self.line_wrap_action.setChecked(self.line_wrap_enabled)
+                
+            # Update line numbers menu action if it exists
+            if hasattr(self, 'line_numbers_action'):
+                self.line_numbers_action.setChecked(self.line_numbers_enabled)
                 
             # Apply line wrap setting if text editor exists
             if hasattr(self, 'text_editor'):
@@ -2442,6 +3192,10 @@ class LogViewer(QMainWindow):
         self.text_editor.clear()
         self.status_label.setText(f"Loading file: {file_path}...")
         
+        # Clear previous bookmarks and reset line counter
+        self.bookmarks.clear()
+        self.current_line_number = 1
+        
         # Show progress bar
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(True)
@@ -2464,11 +3218,14 @@ class LogViewer(QMainWindow):
     
     def on_chunk_ready(self, chunk, chunk_number, total_chunks):
         """Handle a chunk of text from the file loader"""
-        # Append to the total content
+        # Append to the total content (always store original content)
         self.total_content += chunk
         
+        # Process chunk with line numbers if enabled
+        display_chunk = self.add_line_numbers_to_chunk(chunk)
+        
         # Only update the display with this chunk, not the entire content
-        self.text_editor.append_text(chunk)
+        self.text_editor.append_text(display_chunk)
         
         # Update status
         self.status_label.setText(f"Loading chunk {chunk_number}/{total_chunks}...")
@@ -2481,6 +3238,9 @@ class LogViewer(QMainWindow):
         
         # Apply highlighting after file is completely loaded
         safe_single_shot(100, self.load_config)
+        
+        # Load bookmarks for this file
+        safe_single_shot(200, self.load_bookmarks_for_current_file)
         
         # Move cursor to start for better performance
         cursor = self.text_editor.textCursor()
