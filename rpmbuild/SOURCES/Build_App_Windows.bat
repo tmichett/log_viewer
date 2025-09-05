@@ -15,6 +15,18 @@ REM Get the directory where this script is located
 cd /d "%~dp0"
 echo Script directory: %CD%
 
+REM Check code signing configuration
+if defined CODESIGN_IDENTITY (
+    echo Code signing enabled with identity: %CODESIGN_IDENTITY%
+    if not defined CODESIGN_TIMESTAMP (
+        set CODESIGN_TIMESTAMP=http://timestamp.digicert.com
+    )
+    echo Timestamp server: %CODESIGN_TIMESTAMP%
+) else (
+    echo Code signing disabled - set CODESIGN_IDENTITY environment variable to enable
+    echo For Microsoft Store submission, you MUST enable code signing
+)
+
 REM Check if Python is installed
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
@@ -77,6 +89,34 @@ if exist "dist\LogViewer-%VERSION%.exe" (
     echo Copying executable to current directory...
     copy "dist\LogViewer-%VERSION%.exe" "LogViewer-%VERSION%.exe"
     
+    REM Post-build code signing (if PyInstaller signing failed or for additional signatures)
+    if defined CODESIGN_IDENTITY (
+        echo Performing post-build code signing...
+        if defined CODESIGN_PFX_FILE (
+            REM Sign using PFX file
+            signtool sign /f "%CODESIGN_PFX_FILE%" /p "%CODESIGN_PASSWORD%" /tr "%CODESIGN_TIMESTAMP%" /td sha256 /fd sha256 "LogViewer-%VERSION%.exe"
+        ) else (
+            REM Sign using certificate store
+            signtool sign /n "%CODESIGN_IDENTITY%" /tr "%CODESIGN_TIMESTAMP%" /td sha256 /fd sha256 "LogViewer-%VERSION%.exe"
+        )
+        
+        if %errorlevel% equ 0 (
+            echo ✓ Code signing successful
+            
+            REM Verify the signature
+            echo Verifying code signature...
+            signtool verify /pa /v "LogViewer-%VERSION%.exe"
+            if %errorlevel% equ 0 (
+                echo ✓ Code signature verification successful
+            ) else (
+                echo ⚠ Code signature verification failed
+            )
+        ) else (
+            echo ✗ Code signing failed
+            echo Warning: Executable is not signed - Microsoft Store submission will fail
+        )
+    )
+    
     echo.
     echo Build completed successfully!
     echo Executable location: %CD%\LogViewer-%VERSION%.exe
@@ -84,6 +124,14 @@ if exist "dist\LogViewer-%VERSION%.exe" (
     REM Get file size
     for %%A in ("LogViewer-%VERSION%.exe") do (
         echo Executable size: %%~zA bytes
+    )
+    
+    REM Check if executable is signed
+    signtool verify /pa "LogViewer-%VERSION%.exe" >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo ✓ Executable is digitally signed
+    ) else (
+        echo ⚠ Executable is NOT digitally signed - Microsoft Store submission will fail
     )
     
     echo.
