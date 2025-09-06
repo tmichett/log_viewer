@@ -130,6 +130,7 @@ line_wrap_enabled: false
 line_numbers_enabled: false
 bookmark_highlight_color: "#64C8FF"  # Bookmark highlight color
 case_sensitive_search: false         # Case-sensitive ad-hoc search
+ansi_processing_enabled: true        # ANSI color code processing
 ```
 
 ### Configuration Properties
@@ -167,6 +168,16 @@ case_sensitive_search: false         # Case-sensitive ad-hoc search
 - Toggle line numbers using **View** → **Line Numbers**
 - When enabled, each line displays with a right-aligned line number (e.g., "     1: content")
 - Line numbers help with navigation and reference when discussing log contents
+- Setting is automatically saved to your configuration file
+- Can be toggled while viewing files - display refreshes automatically
+
+#### ANSI Color Processing
+- Toggle ANSI color processing using **View** → **ANSI Color Processing**
+- When enabled, ANSI escape sequences are processed and displayed with basic colors
+- When disabled, escape sequences are removed showing clean text only
+- Useful for log files from terminal applications, CI/CD systems, and command-line tools
+- Supports common ANSI color codes (31=red, 32=green, 33=yellow, etc.)
+- Automatically cleans problematic Unicode characters that cause display issues
 - Setting is automatically saved to your configuration file
 - Can be toggled while viewing files - display refreshes automatically
 
@@ -273,9 +284,19 @@ bookmark_highlight_color: "#64C8FF"  # Light blue (default)
 - **Large files**: Optimized for files of any size
 
 ### ANSI Color Support
-- Parses ANSI escape sequences
+- Parses ANSI escape sequences from terminal output
 - Displays colors as intended in the original logs
-- Maintains formatting and color information
+- Maintains formatting (bold, colors) and color information
+- Handles standard color codes (30-37 for foreground, 40-47 for background)
+- Supports bright colors (90-97, 100-107)
+- Processes formatting codes (bold, reset)
+- Cleans problematic Unicode characters that can cause display issues
+- Can be toggled on/off via **View** → **ANSI Color Processing**
+
+### When to Use ANSI Processing
+- **Enable for**: CI/CD logs, terminal output, build logs, ansible logs
+- **Disable for**: Plain text files, logs without color codes
+- **Performance**: Minimal impact with intelligent parsing
 
 ## Troubleshooting
 
@@ -288,6 +309,13 @@ bookmark_highlight_color: "#64C8FF"  # Light blue (default)
 - **Text color not applying**: Check that text_color property is properly formatted as hex code (e.g., "#FF0000")
 - **Configuration not saving**: Ensure you have write permissions to the configuration directory
 - **Colors too similar**: Use sufficient contrast between background and text colors for readability
+
+### ANSI and Unicode Issues
+- **Raw escape sequences showing**: Enable **View** → **ANSI Color Processing**
+- **Garbled text with color codes**: Toggle ANSI processing off if file has malformed sequences
+- **Missing characters**: Unicode normalization automatically applied to fix display issues
+- **Invisible characters**: Problematic Unicode characters automatically removed
+- **Performance with ANSI**: Large files with many color codes may load slower - this is normal
 
 ### Performance Tips
 - Close other applications when viewing very large files

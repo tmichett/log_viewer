@@ -1,0 +1,48 @@
+================= ANSI COLOR TESTING INSTRUCTIONS =================
+
+To test ANSI color processing in Log Viewer:
+
+1. Open Log Viewer:
+   cd /home/travis/Github/log_viewer/rpmbuild/SOURCES
+   python log_viewer.py
+
+2. Test Files Created:
+   - ANSI_TEST_LOG.log (comprehensive test with all color codes)
+   - SIMPLE_COLOR_TEST.log (basic red/green/yellow/blue test)
+
+3. Testing Steps:
+   a) Open one of the test files using "Open Log File" button
+   
+   b) Check if ANSI processing is enabled:
+      - Go to View menu → "ANSI Color Processing" 
+      - Should be checked (✓) by default
+      
+   c) Expected Results with ANSI enabled:
+      - Lines with [31m should show RED text
+      - Lines with [32m should show GREEN text  
+      - Lines with [33m should show YELLOW text
+      - Lines with [1m should show BOLD text
+      - Lines should NOT show the [31m codes themselves
+      
+   d) Test toggling:
+      - Uncheck "ANSI Color Processing" in View menu
+      - File should reload showing plain text without color codes
+      - Re-check to enable colors again
+
+4. What to look for:
+   - WORKING: Text appears in colors, no [31m codes visible
+   - NOT WORKING: You see [31m codes as text, no colors
+   - BROKEN: Black/white blocks instead of text
+
+5. Test Unicode cleaning:
+   - Open ANSI_TEST_LOG.log
+   - Look for "ansible-galaxy" line (should not have weird characters)
+   - Should show clean "ansible-galaxy" not "ansible‪-galaxy"
+
+If colors don't appear, try:
+- Toggle ANSI processing off/on via View menu
+- Check that View → ANSI Color Processing has a checkmark
+- Try different test files
+- Check console output for error messages
+
+================= END INSTRUCTIONS =================

@@ -1,0 +1,9 @@
+Normal text line
+[31mRED text line[0m
+[32mGREEN text line[0m
+[33mYELLOW text line[0m
+[34mBLUE text line[0m
+[1mBOLD text line[0m
+Mixed: [31mRED[0m and [32mGREEN[0m in same line
+ansible-galaxy collection install
+Final normal line

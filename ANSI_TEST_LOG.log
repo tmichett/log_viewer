@@ -1,0 +1,50 @@
+================= ANSI COLOR TEST LOG =================
+
+Plain text line without any formatting
+
+=== Text Representation ANSI Codes ===
+[31mThis should be RED text[0m
+[32mThis should be GREEN text[0m 
+[33mThis should be YELLOW text[0m
+[34mThis should be BLUE text[0m
+[35mThis should be MAGENTA text[0m
+[36mThis should be CYAN text[0m
+[37mThis should be WHITE text[0m
+
+=== Bold Formatting ===
+[1mThis should be BOLD text[0m
+[1;31mThis should be BOLD RED text[0m
+[1;32mThis should be BOLD GREEN text[0m
+
+=== Bright Colors ===
+[91mThis should be BRIGHT RED text[0m
+[92mThis should be BRIGHT GREEN text[0m
+[93mThis should be BRIGHT YELLOW text[0m
+
+=== Background Colors ===
+[40mThis should have BLACK background[0m
+[41mThis should have RED background[0m
+[42mThis should have GREEN background[0m
+[44mThis should have BLUE background[0m
+
+=== Mixed Content ===
+Normal text with [31mRED[0m and [32mGREEN[0m words in same line
+[1mBold[0m and [31mred[0m and [1;33mbold yellow[0m all mixed together
+Log line: [32mSUCCESS[0m operation completed with [31mERROR[0m count: 0
+
+=== Unicode Issues Test ===
+ansible‪-galaxy collection install (has problematic Unicode)
+Text with directional‪ formatting‪ characters‪ that‪ cause‪ issues
+
+=== Real World Examples ===
+[32m+ ansible-galaxy collection install ansible.utils[0m
+[31m- ERROR: Failed to install collection[0m  
+[33mWARNING: Dependency conflict detected[0m
+[36mINFO: Processing 5 of 10 items[0m
+[1;31mFATAL: Critical system error occurred[0m
+
+=== Reset Tests ===
+[31mRed text[0m back to normal [32mgreen text[0m normal again
+[1mBold text[22m now normal weight [1mbold again[0m fully reset
+
+================= END TEST LOG =================

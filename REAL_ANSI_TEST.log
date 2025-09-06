@@ -1,0 +1,5 @@
+Normal text line
+[31mReal RED text[0m
+[32mReal GREEN text[0m
+[1mReal BOLD text[0m
+ansible‪-galaxy with Unicode
