@@ -8,7 +8,7 @@ get_version() {
         VERSION=$(grep "VERSION=" Build_Version | cut -d'=' -f2)
         echo "$VERSION"
     else
-        echo "3.9.5"
+        echo "4.0.1"
     fi
 }
 

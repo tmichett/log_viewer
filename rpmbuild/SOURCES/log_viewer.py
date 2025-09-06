@@ -30,7 +30,7 @@ def get_application_version():
                         return line.split('=')[1].strip()
         except FileNotFoundError:
             pass
-    return "3.9.5"  # Default fallback version
+    return "4.0.1"  # Default fallback version
 
 # Get application version
 APP_VERSION = get_application_version()
@@ -339,38 +339,17 @@ class AnsiColorParser:
         }
 
     def parse_ansi(self, text):
-        # Regular expression to match ANSI escape sequences
-        ansi_pattern = re.compile(r'\x1b\[([0-9;]*)m')
+        """Simple ANSI parser that strips codes and returns clean text"""
+        # For now, just remove ANSI codes to prevent display issues
+        # Future enhancement can add color rendering back safely
+        import re
         
-        # Split text into segments based on ANSI codes
-        segments = []
-        last_end = 0
-        current_format = self.reset_format
+        # Remove ANSI escape sequences
+        ansi_pattern = re.compile(r'(\x1b)?\[([0-9;]*)m')
+        clean_text = ansi_pattern.sub('', text)
         
-        for match in ansi_pattern.finditer(text):
-            # Add text before the ANSI code
-            if match.start() > last_end:
-                segments.append((text[last_end:match.start()], current_format))
-            
-            # Parse the ANSI code
-            code = match.group(1)
-            if code == '0' or code == '':
-                current_format = self.reset_format
-            else:
-                format = QTextCharFormat()
-                codes = [int(c) for c in code.split(';')]
-                for c in codes:
-                    if c in self.colors:
-                        format.setForeground(self.colors[c])
-                current_format = format
-            
-            last_end = match.end()
-        
-        # Add any remaining text
-        if last_end < len(text):
-            segments.append((text[last_end:], current_format))
-        
-        return segments
+        # Return as a single segment with no special formatting
+        return [(clean_text, QTextCharFormat())]
 
 class LogHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
@@ -1804,7 +1783,7 @@ class OptimizedTextEdit(QPlainTextEdit):
         self.document().setMaximumBlockCount(100000)  # Limit maximum blocks for performance
         
     def append_text(self, text):
-        """Append text more efficiently"""
+        """Append text more efficiently with ANSI processing"""
         cursor = self.textCursor()
         
         # Use try/except to handle different PyQt versions
@@ -1821,12 +1800,206 @@ class OptimizedTextEdit(QPlainTextEdit):
                 except (AttributeError, TypeError):
                     print("Warning: Could not move cursor to end.")
         
-        cursor.insertText(text)
+        # Process ANSI colors if enabled (check if main_window exists and has ANSI enabled)
+        if (self.main_window and 
+            hasattr(self.main_window, 'ansi_processing_enabled') and 
+            self.main_window.ansi_processing_enabled):
+            # Debug: Check if we're taking the ANSI processing path
+            if '[31m' in text or '[32m' in text or '[33m' in text:
+                print(f"ANSI processing path: processing text with ANSI codes")
+            self.append_text_with_ansi(text, cursor)
+        else:
+            # Debug: Check why ANSI processing isn't enabled
+            if self.main_window:
+                print(f"ANSI processing disabled: enabled={getattr(self.main_window, 'ansi_processing_enabled', 'MISSING')}")
+            else:
+                print("ANSI processing disabled: no main_window reference")
+            # Just clean and insert text
+            clean_text = self.clean_text_basic(text)
+            if clean_text:
+                cursor.insertText(clean_text)
         
         # Limit text updates for better performance
         self.setUpdatesEnabled(False)
         self.setTextCursor(cursor)
         self.setUpdatesEnabled(True)
+    
+    def clean_text(self, text):
+        """Clean text of problematic characters and escape sequences"""
+        if not text:
+            return text
+            
+        # Remove ANSI escape sequences that weren't parsed
+        import re
+        
+        # Remove various ANSI escape sequences
+        # Color sequences: \x1b[0m, \x1b[31m, etc.
+        ansi_color = re.compile(r'\x1b\[[0-9;]*m')
+        text = ansi_color.sub('', text)
+        
+        # Cursor movement: \x1b[H, \x1b[2J, etc. 
+        ansi_cursor = re.compile(r'\x1b\[[0-9;]*[ABCDHJKfhl]')
+        text = ansi_cursor.sub('', text)
+        
+        # Other escape sequences
+        ansi_other = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+        text = ansi_other.sub('', text)
+        
+        # Remove bare escape characters
+        text = text.replace('\x1b', '')
+        
+        # Handle problematic Unicode characters (actual Unicode, not escaped)
+        problematic_chars = {
+            '\u202a': '',  # Left-to-right embedding
+            '\u202b': '',  # Right-to-left embedding  
+            '\u202c': '',  # Pop directional formatting
+            '\u202d': '',  # Left-to-right override
+            '\u202e': '',  # Right-to-left override
+            '\u200b': '',  # Zero-width space
+            '\u200c': '',  # Zero-width non-joiner
+            '\u200d': '',  # Zero-width joiner
+            '\u2060': '',  # Word joiner
+            '\ufeff': '',  # Zero-width no-break space (BOM)
+            '\u2028': '\n',  # Line separator -> normal newline
+            '\u2029': '\n',  # Paragraph separator -> normal newline
+        }
+        
+        for char, replacement in problematic_chars.items():
+            text = text.replace(char, replacement)
+        
+        # Normalize Unicode to remove combining characters that might cause issues
+        try:
+            import unicodedata
+            text = unicodedata.normalize('NFKC', text)
+        except:
+            pass  # If unicodedata isn't available, continue without normalization
+        
+        return text
+    
+    def clean_text_basic(self, text):
+        """Basic text cleaning to remove problematic characters"""
+        if not text:
+            return text
+        
+        import re
+        
+        # Remove ANSI escape sequences (both \x1b[...m and [...m formats)
+        ansi_escape = re.compile(r'(\x1b)?\[([0-9;]*)m')
+        text = ansi_escape.sub('', text)
+        
+        # Remove other escape sequences
+        ansi_other = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+        text = ansi_other.sub('', text)
+        
+        # Remove problematic Unicode directional formatting
+        text = text.replace('\u202a', '')  # Left-to-right embedding 
+        text = text.replace('\u202c', '')  # Pop directional formatting
+        
+        return text
+    
+    def append_text_with_ansi(self, text, cursor):
+        """Append text with simple ANSI color processing"""
+        import re
+        
+        # Define colors directly here for safety
+        ansi_colors = {
+            31: QColor(255, 0, 0),      # Red
+            32: QColor(0, 255, 0),      # Green  
+            33: QColor(255, 255, 0),    # Yellow
+            34: QColor(0, 0, 255),      # Blue
+            35: QColor(255, 0, 255),    # Magenta
+            36: QColor(0, 255, 255),    # Cyan
+            37: QColor(255, 255, 255),  # White
+            91: QColor(255, 128, 128),  # Bright Red
+            92: QColor(128, 255, 128),  # Bright Green
+            93: QColor(255, 255, 128),  # Bright Yellow
+        }
+        
+        # Simple approach: handle the most common ANSI codes safely
+        ansi_pattern = re.compile(r'(\x1b)?\[([0-9;]*)m')
+        
+        # Debug: Check what we found
+        matches = list(ansi_pattern.finditer(text))
+        if matches:
+            print(f"Found {len(matches)} ANSI matches in: {text[:50]}...")
+        
+        last_end = 0
+        
+        for match in matches:
+            # Insert text before ANSI code with current formatting
+            if match.start() > last_end:
+                text_segment = text[last_end:match.start()]
+                if text_segment:
+                    clean_segment = self.clean_unicode_only(text_segment)
+                    if clean_segment:
+                        cursor.insertText(clean_segment)
+            
+            # Parse the ANSI code for simple colors
+            code = match.group(2)
+            if code and code != '0':
+                try:
+                    color_code = int(code.split(';')[0])  # Take first code only
+                    if color_code in ansi_colors:
+                        # Apply color to subsequent text
+                        format_obj = QTextCharFormat()
+                        format_obj.setForeground(ansi_colors[color_code])
+                        cursor.setCharFormat(format_obj)
+                    elif code == '1':  # Bold
+                        format_obj = QTextCharFormat()
+                        try:
+                            format_obj.setFontWeight(QFont.Weight.Bold)
+                        except AttributeError:
+                            format_obj.setFontWeight(700)
+                        cursor.setCharFormat(format_obj)
+                except (ValueError, IndexError, AttributeError):
+                    # If parsing fails, just continue without color
+                    pass
+            else:
+                # Reset formatting
+                cursor.setCharFormat(QTextCharFormat())
+            
+            last_end = match.end()
+        
+        # Insert any remaining text
+        if last_end < len(text):
+            remaining_text = text[last_end:]
+            if remaining_text:
+                clean_remaining = self.clean_unicode_only(remaining_text)
+                if clean_remaining:
+                    cursor.insertText(clean_remaining)
+    
+    def clean_unicode_only(self, text):
+        """Clean only Unicode issues, not ANSI codes (for pre-processed ANSI segments)"""
+        if not text:
+            return text
+        
+        # Handle problematic Unicode characters (actual Unicode, not escaped)
+        problematic_chars = {
+            '\u202a': '',  # Left-to-right embedding
+            '\u202b': '',  # Right-to-left embedding  
+            '\u202c': '',  # Pop directional formatting
+            '\u202d': '',  # Left-to-right override
+            '\u202e': '',  # Right-to-left override
+            '\u200b': '',  # Zero-width space
+            '\u200c': '',  # Zero-width non-joiner
+            '\u200d': '',  # Zero-width joiner
+            '\u2060': '',  # Word joiner
+            '\ufeff': '',  # Zero-width no-break space (BOM)
+            '\u2028': '\n',  # Line separator -> normal newline
+            '\u2029': '\n',  # Paragraph separator -> normal newline
+        }
+        
+        for char, replacement in problematic_chars.items():
+            text = text.replace(char, replacement)
+        
+        # Normalize Unicode to remove combining characters that might cause issues
+        try:
+            import unicodedata
+            text = unicodedata.normalize('NFKC', text)
+        except:
+            pass  # If unicodedata isn't available, continue without normalization
+        
+        return text
     
     def contextMenuEvent(self, event):
         """Handle right-click context menu for bookmarks"""
@@ -1903,6 +2076,9 @@ class LogViewer(QMainWindow):
         
         # Search system
         self.case_sensitive_search = False  # Case-sensitive search option
+        
+        # ANSI processing system
+        self.ansi_processing_enabled = True  # Enable ANSI color processing by default
         
         # Theme system
         self.current_theme_mode = ThemeMode.SYSTEM
@@ -2223,6 +2399,12 @@ class LogViewer(QMainWindow):
         self.line_numbers_action.setCheckable(True)
         self.line_numbers_action.setChecked(self.line_numbers_enabled)
         self.line_numbers_action.triggered.connect(self.toggle_line_numbers)
+        
+        # ANSI processing toggle
+        self.ansi_processing_action = view_menu.addAction("ANSI Color Processing")
+        self.ansi_processing_action.setCheckable(True)
+        self.ansi_processing_action.setChecked(self.ansi_processing_enabled)
+        self.ansi_processing_action.triggered.connect(self.toggle_ansi_processing)
         
         # Bookmarks menu
         bookmarks_menu = menubar.addMenu("Bookmarks")
@@ -2592,13 +2774,32 @@ class LogViewer(QMainWindow):
         numbers_status = "enabled" if self.line_numbers_enabled else "disabled"
         self.status_label.setText(f"Line numbers {numbers_status}")
 
+    def toggle_ansi_processing(self):
+        """Toggle ANSI color processing on/off"""
+        self.ansi_processing_enabled = not self.ansi_processing_enabled
+        
+        # Update the menu action state if it exists
+        if hasattr(self, 'ansi_processing_action'):
+            self.ansi_processing_action.setChecked(self.ansi_processing_enabled)
+        
+        # If we have content loaded, refresh the display
+        if hasattr(self, 'current_file') and self.current_file:
+            self.refresh_display()
+        
+        # Save the preference
+        self.save_app_config()
+        
+        # Update status
+        ansi_status = "enabled" if self.ansi_processing_enabled else "disabled"
+        self.status_label.setText(f"ANSI color processing {ansi_status}")
+
     def refresh_display(self):
         """Refresh the current file display with current settings"""
         if hasattr(self, 'current_file') and self.current_file and os.path.exists(self.current_file):
             # Reset line counter
             self.current_line_number = 1
             # Reload the file
-            self.open_file_by_path(self.current_file)
+            self.load_file_async(self.current_file)
     
     def add_line_numbers_to_chunk(self, chunk):
         """Add line numbers to a text chunk"""
@@ -2673,6 +2874,9 @@ class LogViewer(QMainWindow):
             
             # Update case-sensitive search preference
             config['case_sensitive_search'] = self.case_sensitive_search
+            
+            # Update ANSI processing preference
+            config['ansi_processing_enabled'] = self.ansi_processing_enabled
             
             # Save bookmarks (only for current file if available)
             if hasattr(self, 'current_file') and self.current_file and self.bookmarks:
@@ -3174,6 +3378,13 @@ class LogViewer(QMainWindow):
                         if hasattr(self, 'case_sensitive_checkbox'):
                             self.case_sensitive_checkbox.setChecked(self.case_sensitive_search)
                     
+                    # Load ANSI processing preference if present
+                    if 'ansi_processing_enabled' in config:
+                        self.ansi_processing_enabled = config['ansi_processing_enabled']
+                        # Update menu action if it exists
+                        if hasattr(self, 'ansi_processing_action'):
+                            self.ansi_processing_action.setChecked(self.ansi_processing_enabled)
+                    
                     # Load bookmarks for current file if present
                     if hasattr(self, 'current_file') and self.current_file and 'bookmarks' in config:
                         file_bookmarks = config['bookmarks'].get(self.current_file, [])
@@ -3342,7 +3553,7 @@ class LogViewer(QMainWindow):
         # Process chunk with line numbers if enabled
         display_chunk = self.add_line_numbers_to_chunk(chunk)
         
-        # Only update the display with this chunk, not the entire content
+        # Only update the display with this chunk (ANSI processing temporarily disabled)
         self.text_editor.append_text(display_chunk)
         
         # Update status
