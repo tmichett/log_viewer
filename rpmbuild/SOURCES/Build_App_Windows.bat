@@ -4,7 +4,7 @@ REM Author: travis@michettetech.com
 
 REM Read version from Build_Version file
 for /f "tokens=2 delims==" %%a in ('findstr "VERSION=" Build_Version 2^>nul') do set VERSION=%%a
-if "%VERSION%"=="" set VERSION=3.0.0
+if "%VERSION%"=="" set VERSION=4.0.1
 
 echo ============================================
 echo Log Viewer - Windows Build Process

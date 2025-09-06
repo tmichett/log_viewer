@@ -30,7 +30,7 @@ def get_application_version():
                         return line.split('=')[1].strip()
         except FileNotFoundError:
             pass
-    return "3.9.5"  # Default fallback version
+    return "4.0.1"  # Default fallback version
 
 # Get application version
 APP_VERSION = get_application_version()
