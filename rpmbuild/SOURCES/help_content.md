@@ -21,10 +21,12 @@
 4. The entire line containing your search term will be highlighted in yellow
 
 ### Search Tips
-- Search is case-insensitive
+- Search is case-insensitive by default
+- Use the "Case Sensitive" checkbox for exact case matching
 - Use specific terms to reduce result sets
 - The status bar shows current match position and total matches
 - Search results are cached for fast navigation
+- Case sensitivity setting is saved to your configuration
 
 ## Text Highlighting
 
@@ -58,6 +60,7 @@ The enhanced formatting dialog provides complete control over text appearance:
   - Select custom text color with color picker
   - Use "Auto" for automatic color selection based on background brightness
 - **Bold Text**: Check to make highlighted text bold
+- **Case Sensitive**: Check to make term matching case-sensitive (default: case-insensitive)
 - **Preview**: Buttons show live preview of your formatting choices
 - **Smart Suggestions**: As you type the term, the "Auto" option updates to show the suggested color
 
@@ -126,6 +129,7 @@ theme: "system"               # Options: system, light, dark
 line_wrap_enabled: false
 line_numbers_enabled: false
 bookmark_highlight_color: "#64C8FF"  # Bookmark highlight color
+case_sensitive_search: false         # Case-sensitive ad-hoc search
 ```
 
 ### Configuration Properties
@@ -133,6 +137,7 @@ bookmark_highlight_color: "#64C8FF"  # Bookmark highlight color
 - **color**: Background color as hex code (optional, defaults to cornflower blue)
 - **text_color**: Text color as hex code (optional, auto-selects based on background if not specified)
 - **bold**: Boolean for bold text formatting (optional, defaults to false)
+- **case_sensitive**: Boolean for case-sensitive matching (optional, defaults to false)
 - **Simple format**: Just the term string for default highlighting (backward compatible)
 
 ## User Interface

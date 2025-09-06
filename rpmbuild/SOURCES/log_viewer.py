@@ -437,8 +437,14 @@ class LogHighlighter(QSyntaxHighlighter):
                         # Fallback for older PyQt versions
                         highlight_format.setFontWeight(400)  # Normal weight
                 
+                # Store both original term and processed term for comparison
+                case_sensitive = term.get('case_sensitive', False)
+                processed_term = term['term'] if case_sensitive else term['term'].lower()
+                
                 self.highlight_terms.append({
-                    'term': term['term'].lower(),
+                    'term': processed_term,
+                    'original_term': term['term'],
+                    'case_sensitive': case_sensitive,
                     'format': highlight_format
                 })
             else:
@@ -514,8 +520,15 @@ class LogHighlighter(QSyntaxHighlighter):
         
         # Apply config-based highlighting only if not in search-highlighted area
         for term_info in self.highlight_terms:
-            if term_info['term'] in text.lower():
-                self.setFormat(0, len(text), term_info['format'])
+            # Check if term matches based on case sensitivity
+            if term_info.get('case_sensitive', False):
+                # Case-sensitive search
+                if term_info['term'] in text:
+                    self.setFormat(0, len(text), term_info['format'])
+            else:
+                # Case-insensitive search (default)
+                if term_info['term'] in text.lower():
+                    self.setFormat(0, len(text), term_info['format'])
 
 class HelpDialog(QDialog):
     def __init__(self, parent=None):
@@ -864,7 +877,7 @@ class TermFormatDialog(QDialog):
     # Signal to notify when apply is pressed
     applied = pyqtSignal(dict)
     
-    def __init__(self, parent=None, term="", bg_color=None, text_color=None, bold=False):
+    def __init__(self, parent=None, term="", bg_color=None, text_color=None, bold=False, case_sensitive=False):
         super().__init__(parent)
         self.setWindowTitle("Term Formatting")
         self.setModal(True)
@@ -1035,6 +1048,38 @@ class TermFormatDialog(QDialog):
             }}
         """)
         layout.addWidget(self.bold_checkbox)
+        
+        # Case sensitive checkbox
+        self.case_sensitive_checkbox = QCheckBox("Case Sensitive")
+        self.case_sensitive_checkbox.setChecked(case_sensitive)
+        self.case_sensitive_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {self.theme_colors.window_text};
+                padding: 5px;
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {self.theme_colors.border_color};
+                border-radius: 3px;
+                background-color: {self.theme_colors.button_bg};
+            }}
+            QCheckBox::indicator:hover {{
+                border: 2px solid {self.theme_colors.window_text};
+                background-color: {self.theme_colors.hover_color};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: #4CAF50;
+                border: 2px solid #4CAF50;
+                image: none;
+            }}
+            QCheckBox::indicator:checked:hover {{
+                background-color: #45a049;
+                border: 2px solid #45a049;
+            }}
+        """)
+        layout.addWidget(self.case_sensitive_checkbox)
         
         # Buttons
         button_layout = QHBoxLayout()
@@ -1225,7 +1270,8 @@ class TermFormatDialog(QDialog):
         result = {
             'term': self.term_edit.text(),
             'color': self.bg_color.name(),
-            'bold': self.bold_checkbox.isChecked()
+            'bold': self.bold_checkbox.isChecked(),
+            'case_sensitive': self.case_sensitive_checkbox.isChecked()
         }
         if self.text_color:
             result['text_color'] = self.text_color.name()
@@ -1343,6 +1389,8 @@ class ConfigDialog(QDialog):
                     display_text += f" (Text: {term['text_color']})"
                 if term.get('bold', False):
                     display_text += " (Bold)"
+                if term.get('case_sensitive', False):
+                    display_text += " (Case Sensitive)"
                 self.terms_list.addItem(display_text)
             else:
                 self.terms_list.addItem(term)
@@ -1385,14 +1433,16 @@ class ConfigDialog(QDialog):
                 bg_color = current_term.get('color', None)
                 text_color = current_term.get('text_color', None)
                 bold = current_term.get('bold', False)
+                case_sensitive = current_term.get('case_sensitive', False)
             else:
                 term = current_term
                 bg_color = None
                 text_color = None
                 bold = False
+                case_sensitive = False
             
             dialog = TermFormatDialog(self, term=term, bg_color=bg_color, 
-                                    text_color=text_color, bold=bold)
+                                    text_color=text_color, bold=bold, case_sensitive=case_sensitive)
             
             # Connect apply signal to preview the changes
             dialog.applied.connect(lambda term_data: self.preview_term_changes(term_data, is_new=False, index=current_row))
@@ -1851,6 +1901,9 @@ class LogViewer(QMainWindow):
         self.bookmark_highlight_format = QTextCharFormat()
         self.update_bookmark_highlight_format()
         
+        # Search system
+        self.case_sensitive_search = False  # Case-sensitive search option
+        
         # Theme system
         self.current_theme_mode = ThemeMode.SYSTEM
         self.current_theme_colors = get_theme_colors(self.current_theme_mode)
@@ -1955,6 +2008,13 @@ class LogViewer(QMainWindow):
         """)
         find_next_button.clicked.connect(self.find_next)
         search_layout.addWidget(find_next_button)
+        
+        # Case sensitive checkbox
+        self.case_sensitive_checkbox = QCheckBox("Case Sensitive")
+        self.case_sensitive_checkbox.setChecked(self.case_sensitive_search)
+        # Style will be applied by theme system - use basic style for now
+        search_layout.addWidget(self.case_sensitive_checkbox)
+        self.case_sensitive_checkbox.stateChanged.connect(self.on_case_sensitive_changed)
         
         layout.addLayout(search_layout)
         
@@ -2262,6 +2322,16 @@ class LogViewer(QMainWindow):
         self.search_results = []
         self.current_search_index = -1
         self.status_label.setText("Search cleared")
+    
+    def on_case_sensitive_changed(self, state):
+        """Handle case-sensitive checkbox state change"""
+        self.case_sensitive_search = state == 2  # Qt.CheckState.Checked = 2
+        # Clear current search results to force re-search with new setting
+        if self.search_input.text():
+            self.search_results = []
+            self.current_search_index = -1
+        # Save the preference
+        self.save_app_config()
 
     def apply_theme(self):
         """Apply the current theme to all UI elements"""
@@ -2401,6 +2471,36 @@ class LogViewer(QMainWindow):
         for label in labels:
             if label != self.font_size_display:  # Skip font size display as it has special styling
                 label.setStyleSheet(f"color: {colors.text_color};")
+        
+        # Update case-sensitive checkbox style
+        if hasattr(self, 'case_sensitive_checkbox') and self.case_sensitive_checkbox:
+            self.case_sensitive_checkbox.setStyleSheet(f"""
+                QCheckBox {{
+                    color: {colors.text_color};
+                    padding: 5px;
+                    spacing: 8px;
+                }}
+                QCheckBox::indicator {{
+                    width: 18px;
+                    height: 18px;
+                    border: 2px solid {colors.border_color};
+                    border-radius: 3px;
+                    background-color: {colors.button_bg};
+                }}
+                QCheckBox::indicator:hover {{
+                    border: 2px solid {colors.text_color};
+                    background-color: {colors.hover_color};
+                }}
+                QCheckBox::indicator:checked {{
+                    background-color: #4CAF50;
+                    border: 2px solid #4CAF50;
+                    image: none;
+                }}
+                QCheckBox::indicator:checked:hover {{
+                    background-color: #45a049;
+                    border: 2px solid #45a049;
+                }}
+            """)
     
     def set_theme_mode(self, theme_mode):
         """Set the theme mode and apply the theme"""
@@ -2570,6 +2670,9 @@ class LogViewer(QMainWindow):
             
             # Update bookmark highlight color
             config['bookmark_highlight_color'] = self.bookmark_highlight_color
+            
+            # Update case-sensitive search preference
+            config['case_sensitive_search'] = self.case_sensitive_search
             
             # Save bookmarks (only for current file if available)
             if hasattr(self, 'current_file') and self.current_file and self.bookmarks:
@@ -2782,14 +2885,22 @@ class LogViewer(QMainWindow):
         # Get the full text (more efficient than searching through the document)
         full_text = self.text_editor.toPlainText()
         
+        # Prepare search term and text based on case sensitivity
+        if self.case_sensitive_search:
+            search_text = full_text
+            term_to_find = search_term
+        else:
+            search_text = full_text.lower()
+            term_to_find = search_term.lower()
+        
         # Find all occurrences
         start = 0
         while True:
-            pos = full_text.find(search_term, start)
+            pos = search_text.find(term_to_find, start)
             if pos == -1:
                 break
             self.search_results.append(pos)
-            start = pos + len(search_term)
+            start = pos + len(term_to_find)
         
         # Update the UI to reflect the number of matches
         if self.search_results:
@@ -2825,9 +2936,9 @@ class LogViewer(QMainWindow):
                 except (AttributeError, TypeError):
                     cursor.setPosition(self.current_highlight_end, QtConstants.KeepAnchor)
             
-            # Clear the formatting by setting to default
+            # Clear the formatting by removing all character formatting
             default_format = QTextCharFormat()
-            default_format.setForeground(QColor(255, 255, 255))  # White text
+            # Don't set any colors - let the theme handle it
             cursor.setCharFormat(default_format)
             
             # Clear the stored positions
@@ -3055,6 +3166,13 @@ class LogViewer(QMainWindow):
                     if 'bookmark_highlight_color' in config:
                         self.bookmark_highlight_color = config['bookmark_highlight_color']
                         self.update_bookmark_highlight_format()
+                    
+                    # Load case-sensitive search preference if present
+                    if 'case_sensitive_search' in config:
+                        self.case_sensitive_search = config['case_sensitive_search']
+                        # Update checkbox if it exists
+                        if hasattr(self, 'case_sensitive_checkbox'):
+                            self.case_sensitive_checkbox.setChecked(self.case_sensitive_search)
                     
                     # Load bookmarks for current file if present
                     if hasattr(self, 'current_file') and self.current_file and 'bookmarks' in config:
