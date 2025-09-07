@@ -1,3 +1,4 @@
+bookmark_highlight_color: '#64C8FF'
 highlight_terms:
 - bold: true
   color: '#6495ed'
@@ -20,5 +21,6 @@ highlight_terms:
   color: '#0066CC'
   term: running
   text_color: '#FFFF00'
+line_numbers_enabled: false
 line_wrap_enabled: false
-theme: light
+theme: dark
