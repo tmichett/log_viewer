@@ -1,5 +1,5 @@
 %define name LogViewer
-%define version 4.0.1
+%define version 4.0.5
 %define release 0
 %define buildroot %{_tmppath}/%{name}-%{version}-%{release}-root
 
@@ -73,6 +73,14 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Jan 15 2025 Log Viewer Build <travis@michettetech.com> - 4.0.5-0
+- Enhanced ANSI color processing with improved escape sequence detection
+- Fixed ANSI color rendering to match terminal output exactly
+- Added support for compound ANSI codes (e.g., '\x1b[0;32m')
+- Expanded color mapping for complete ANSI color spectrum
+- Improved colored bar and symbol display in log files
+- Better handling of reset codes and formatting sequences
+
 * Wed Jan 15 2025 Log Viewer Build <travis@michettetech.com> - 3.9.5-0
 - Version bump to 3.9.5
 - Major feature release with comprehensive log analysis capabilities

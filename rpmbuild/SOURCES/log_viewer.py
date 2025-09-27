@@ -30,7 +30,7 @@ def get_application_version():
                         return line.split('=')[1].strip()
         except FileNotFoundError:
             pass
-    return "4.0.1"  # Default fallback version
+    return "4.0.5"  # Default fallback version
 
 # Get application version
 APP_VERSION = get_application_version()
@@ -1805,7 +1805,7 @@ class OptimizedTextEdit(QPlainTextEdit):
             hasattr(self.main_window, 'ansi_processing_enabled') and 
             self.main_window.ansi_processing_enabled):
             # Debug: Check if we're taking the ANSI processing path
-            if '[31m' in text or '[32m' in text or '[33m' in text:
+            if '\x1b[' in text or '\033[' in text:
                 print(f"ANSI processing path: processing text with ANSI codes")
             self.append_text_with_ansi(text, cursor)
         else:
@@ -1903,6 +1903,7 @@ class OptimizedTextEdit(QPlainTextEdit):
         
         # Define colors directly here for safety
         ansi_colors = {
+            30: QColor(0, 0, 0),        # Black
             31: QColor(255, 0, 0),      # Red
             32: QColor(0, 255, 0),      # Green  
             33: QColor(255, 255, 0),    # Yellow
@@ -1910,13 +1911,19 @@ class OptimizedTextEdit(QPlainTextEdit):
             35: QColor(255, 0, 255),    # Magenta
             36: QColor(0, 255, 255),    # Cyan
             37: QColor(255, 255, 255),  # White
+            90: QColor(128, 128, 128),  # Bright Black (Gray)
             91: QColor(255, 128, 128),  # Bright Red
             92: QColor(128, 255, 128),  # Bright Green
             93: QColor(255, 255, 128),  # Bright Yellow
+            94: QColor(128, 128, 255),  # Bright Blue
+            95: QColor(255, 128, 255),  # Bright Magenta
+            96: QColor(128, 255, 255),  # Bright Cyan
+            97: QColor(255, 255, 255),  # Bright White
         }
         
         # Simple approach: handle the most common ANSI codes safely
-        ansi_pattern = re.compile(r'(\x1b)?\[([0-9;]*)m')
+        # Match ESC character (ASCII 27) followed by [ and color codes
+        ansi_pattern = re.compile(r'\x1b\[([0-9;]*)m')
         
         # Debug: Check what we found
         matches = list(ansi_pattern.finditer(text))
@@ -1934,28 +1941,35 @@ class OptimizedTextEdit(QPlainTextEdit):
                     if clean_segment:
                         cursor.insertText(clean_segment)
             
-            # Parse the ANSI code for simple colors
-            code = match.group(2)
-            if code and code != '0':
+            # Parse the ANSI code for colors and formatting
+            code = match.group(1)
+            if code:
                 try:
-                    color_code = int(code.split(';')[0])  # Take first code only
-                    if color_code in ansi_colors:
-                        # Apply color to subsequent text
-                        format_obj = QTextCharFormat()
-                        format_obj.setForeground(ansi_colors[color_code])
-                        cursor.setCharFormat(format_obj)
-                    elif code == '1':  # Bold
-                        format_obj = QTextCharFormat()
-                        try:
-                            format_obj.setFontWeight(QFont.Weight.Bold)
-                        except AttributeError:
-                            format_obj.setFontWeight(700)
-                        cursor.setCharFormat(format_obj)
+                    # Split compound codes like "0;32" into individual codes
+                    codes = [int(c) for c in code.split(';') if c.strip()]
+                    format_obj = QTextCharFormat()
+                    
+                    # Process each code
+                    for color_code in codes:
+                        if color_code == 0:
+                            # Reset formatting
+                            format_obj = QTextCharFormat()
+                        elif color_code == 1:
+                            # Bold
+                            try:
+                                format_obj.setFontWeight(QFont.Weight.Bold)
+                            except AttributeError:
+                                format_obj.setFontWeight(700)
+                        elif color_code in ansi_colors:
+                            # Apply color
+                            format_obj.setForeground(ansi_colors[color_code])
+                    
+                    cursor.setCharFormat(format_obj)
                 except (ValueError, IndexError, AttributeError):
                     # If parsing fails, just continue without color
-                    pass
+                    cursor.setCharFormat(QTextCharFormat())
             else:
-                # Reset formatting
+                # Empty code means reset
                 cursor.setCharFormat(QTextCharFormat())
             
             last_end = match.end()
@@ -3553,7 +3567,7 @@ class LogViewer(QMainWindow):
         # Process chunk with line numbers if enabled
         display_chunk = self.add_line_numbers_to_chunk(chunk)
         
-        # Only update the display with this chunk (ANSI processing temporarily disabled)
+        # Update the display with this chunk using proper ANSI processing
         self.text_editor.append_text(display_chunk)
         
         # Update status
