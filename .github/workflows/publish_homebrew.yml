@@ -1,0 +1,289 @@
+name: Publish to Homebrew
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag to publish (e.g., v3.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish-homebrew:
+    name: Publish Log Viewer to Homebrew Tap
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get release information
+        id: release_info
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag_name }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+
+          VERSION="${TAG#v}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
+
+          echo "=========================================================="
+          echo "Publishing Homebrew cask for version: $VERSION"
+          echo "Release tag: $TAG"
+          echo "Release URL: $RELEASE_URL"
+          echo "=========================================================="
+          echo ""
+          echo "Required release assets:"
+          echo "  - LogViewer-${VERSION}-macOS-arm64.dmg"
+          echo "  - LogViewer-${VERSION}-macOS-x86_64.dmg"
+
+      - name: Download release assets and calculate SHA256
+        id: download_assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.release_info.outputs.tag }}"
+          VERSION="${{ steps.release_info.outputs.version }}"
+
+          mkdir -p /tmp/logviewer-homebrew-downloads
+          cd /tmp/logviewer-homebrew-downloads
+
+          ARM64_FILE="LogViewer-${VERSION}-macOS-arm64.dmg"
+          X86_64_FILE="LogViewer-${VERSION}-macOS-x86_64.dmg"
+
+          DOWNLOAD_FAILED=0
+
+          echo "⬇️  Downloading ${ARM64_FILE}..."
+          if ! gh release download "${TAG}" --repo "${{ github.repository }}" --pattern "${ARM64_FILE}"; then
+            echo "❌ Failed to download ${ARM64_FILE}"
+            DOWNLOAD_FAILED=1
+          fi
+
+          echo "⬇️  Downloading ${X86_64_FILE}..."
+          if ! gh release download "${TAG}" --repo "${{ github.repository }}" --pattern "${X86_64_FILE}"; then
+            echo "❌ Failed to download ${X86_64_FILE}"
+            DOWNLOAD_FAILED=1
+          fi
+
+          if [ "$DOWNLOAD_FAILED" -eq 1 ]; then
+            echo ""
+            echo "❌ One or more files failed to download."
+            echo "Make sure the GitHub release exists and includes:"
+            echo "  - ${ARM64_FILE}"
+            echo "  - ${X86_64_FILE}"
+            exit 1
+          fi
+
+          ARM64_SHA256=$(shasum -a 256 "${ARM64_FILE}" | awk '{print $1}')
+          X86_64_SHA256=$(shasum -a 256 "${X86_64_FILE}" | awk '{print $1}')
+
+          echo "arm64_sha256=$ARM64_SHA256" >> "$GITHUB_OUTPUT"
+          echo "x86_64_sha256=$X86_64_SHA256" >> "$GITHUB_OUTPUT"
+
+          echo "✅ SHA256 checksums calculated"
+          echo "  ARM64:  $ARM64_SHA256"
+          echo "  x86_64: $X86_64_SHA256"
+
+      - name: Setup tap repository
+        id: setup_tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "⚠️  HOMEBREW_TAP_TOKEN not set"
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          TAP_REPO="homebrew-logviewer"
+          TAP_ORG="${{ github.repository_owner }}"
+          TAP_FULL_REPO="${TAP_ORG}/${TAP_REPO}"
+
+          echo "has_token=true" >> "$GITHUB_OUTPUT"
+          echo "tap_repo=$TAP_REPO" >> "$GITHUB_OUTPUT"
+          echo "tap_org=$TAP_ORG" >> "$GITHUB_OUTPUT"
+          echo "tap_full_repo=$TAP_FULL_REPO" >> "$GITHUB_OUTPUT"
+
+          cd /tmp
+          if git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${TAP_FULL_REPO}.git" homebrew-tap 2>/dev/null; then
+            echo "Tap repository cloned successfully"
+          else
+            echo "Tap repository doesn't exist or token lacks access"
+            echo "Please create: https://github.com/${TAP_FULL_REPO}"
+            exit 1
+          fi
+
+      - name: Generate Homebrew cask
+        run: |
+          VERSION="${{ steps.release_info.outputs.version }}"
+          RELEASE_URL="${{ steps.release_info.outputs.release_url }}"
+          ARM64_SHA="${{ steps.download_assets.outputs.arm64_sha256 }}"
+          X86_64_SHA="${{ steps.download_assets.outputs.x86_64_sha256 }}"
+          REPO="${{ github.repository }}"
+
+          mkdir -p homebrew-formulas
+
+          cat > homebrew-formulas/logviewer.rb << 'CASK'
+          cask "logviewer" do
+            version "VERSION_PLACEHOLDER"
+
+            if Hardware::CPU.intel?
+              url "RELEASE_URL_PLACEHOLDER/LogViewer-VERSION_PLACEHOLDER-macOS-x86_64.dmg"
+              sha256 "X86_64_SHA_PLACEHOLDER"
+            else
+              url "RELEASE_URL_PLACEHOLDER/LogViewer-VERSION_PLACEHOLDER-macOS-arm64.dmg"
+              sha256 "ARM64_SHA_PLACEHOLDER"
+            end
+
+            name "Log Viewer"
+            desc "Cross-platform GUI application for viewing, searching, and analyzing log files"
+            homepage "https://github.com/REPO_PLACEHOLDER"
+
+            app "Log Viewer.app"
+
+            zap trash: [
+              "~/Library/Application Support/LogViewer",
+              "~/Library/Preferences/com.michettetech.LogViewer.plist",
+              "~/Library/Saved Application State/com.michettetech.LogViewer.savedState",
+            ]
+          end
+          CASK
+
+          sed -i '' "s|VERSION_PLACEHOLDER|${VERSION}|g" homebrew-formulas/logviewer.rb
+          sed -i '' "s|RELEASE_URL_PLACEHOLDER|${RELEASE_URL}|g" homebrew-formulas/logviewer.rb
+          sed -i '' "s|REPO_PLACEHOLDER|${REPO}|g" homebrew-formulas/logviewer.rb
+          sed -i '' "s|ARM64_SHA_PLACEHOLDER|${ARM64_SHA}|g" homebrew-formulas/logviewer.rb
+          sed -i '' "s|X86_64_SHA_PLACEHOLDER|${X86_64_SHA}|g" homebrew-formulas/logviewer.rb
+
+          echo "Generated cask:"
+          cat homebrew-formulas/logviewer.rb
+
+      - name: Commit and push to tap repository
+        if: steps.setup_tap.outputs.has_token == 'true'
+        run: |
+          VERSION="${{ steps.release_info.outputs.version }}"
+          TAG="${{ steps.release_info.outputs.tag }}"
+          TAP_FULL_REPO="${{ steps.setup_tap.outputs.tap_full_repo }}"
+
+          cd /tmp/homebrew-tap
+          mkdir -p Casks
+
+          cp "${GITHUB_WORKSPACE}/homebrew-formulas/logviewer.rb" Casks/logviewer.rb
+
+          git add Casks/logviewer.rb
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Release Log Viewer ${VERSION}" \
+                     -m "Update Homebrew cask for ${TAG}" \
+                     -m "Source: https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+
+          git push origin main || git push origin master || {
+            echo "Failed to push to tap repository"
+            exit 1
+          }
+
+          echo "✅ Successfully pushed cask to ${TAP_FULL_REPO}"
+
+      - name: Upload generated cask as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: homebrew-cask
+          path: homebrew-formulas/
+          retention-days: 90
+
+      - name: Create installation guide
+        run: |
+          TAP_FULL_REPO="${{ steps.setup_tap.outputs.tap_full_repo }}"
+          if [ -z "$TAP_FULL_REPO" ]; then
+            TAP_FULL_REPO="YOUR_ORG/homebrew-logviewer"
+          fi
+
+          cat > homebrew-formulas/HOMEBREW_INSTALL.md << EOF
+          # Installing Log Viewer via Homebrew
+
+          ## Add the Tap
+
+          \`\`\`bash
+          brew tap ${TAP_FULL_REPO}
+          \`\`\`
+
+          ## Install Log Viewer
+
+          \`\`\`bash
+          brew install --cask logviewer
+          \`\`\`
+
+          ## Upgrade
+
+          \`\`\`bash
+          brew update
+          brew upgrade --cask logviewer
+          \`\`\`
+
+          ## Uninstall
+
+          \`\`\`bash
+          brew uninstall --cask logviewer
+          \`\`\`
+
+          ## Verify
+
+          \`\`\`bash
+          open -a "Log Viewer"
+          \`\`\`
+          EOF
+
+      - name: Create summary
+        run: |
+          VERSION="${{ steps.release_info.outputs.version }}"
+          TAG="${{ steps.release_info.outputs.tag }}"
+          HAS_TOKEN="${{ steps.setup_tap.outputs.has_token }}"
+          TAP_FULL_REPO="${{ steps.setup_tap.outputs.tap_full_repo }}"
+
+          echo "## Homebrew Publishing Complete 🍺" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Version:** ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Tag:** ${TAG}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$HAS_TOKEN" = "true" ]; then
+            echo "### ✅ Published to Tap" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Tap Repository:** https://github.com/${TAP_FULL_REPO}" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```bash' >> "$GITHUB_STEP_SUMMARY"
+            echo "brew tap ${TAP_FULL_REPO}" >> "$GITHUB_STEP_SUMMARY"
+            echo "brew install --cask logviewer" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ⚠️ Cask Generated (Not Published)" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Set the HOMEBREW_TAP_TOKEN secret and create a public tap repository named homebrew-logviewer." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 📋 Checksums" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ARM64: \`${{ steps.download_assets.outputs.arm64_sha256 }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- x86_64: \`${{ steps.download_assets.outputs.x86_64_sha256 }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+# Made with Bob
