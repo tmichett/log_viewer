@@ -1,5 +1,5 @@
 Normal text line
-[31mActual ANSI red text[0m
-[32mActual ANSI green text[0m
-Mixed with [33mtext representation yellow[0m
-ansible‪-galaxy with Unicode issues
+[31mReal RED text[0m
+[32mReal GREEN text[0m
+[1mReal BOLD text[0m
+ansible‪-galaxy with Unicode
