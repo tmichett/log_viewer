@@ -160,3 +160,4 @@ rpmbuild/BUILDROOT/
 ansi_test.log
 test_*.log
 *.tmp
+
